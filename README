@@ -1,0 +1,9 @@
+This is a simple space shooter that I made with C and SDL in about a day.
+You'll need SDL, SDL_image, SDL_ttf, and SDL_mixer to compile this.
+
+Controls:
+Left = Move left
+Right = Move right
+Space = Fire / Continue on Game Over
+Escape = Quit
+

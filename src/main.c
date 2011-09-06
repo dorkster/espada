@@ -1,11 +1,30 @@
+/*
+    Simple Space Shooter
+    Copyright (C) 2011  Justin Jacobs
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include "SDL/SDL.h"
 #include "SDL/SDL_image.h"
 #include "SDL/SDL_ttf.h"
+#include "SDL/SDL_mixer.h"
 #include <stdlib.h>
 #include <time.h>
 
 #define MAXLASERS 5
-#define MAXENEMIES 2
+#define MAXENEMIES 4
 
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
@@ -31,6 +50,10 @@ int enemyTimer;
 // The main drawing area
 SDL_Surface* screen = NULL;
 
+// Background image
+SDL_Surface* background = NULL;
+int background_y = 0;
+
 // Sprites
 SDL_Surface* sprite_player = NULL;
 SDL_Surface* sprite_laser = NULL;
@@ -41,6 +64,11 @@ TTF_Font *font = NULL;
 SDL_Color textColor = { 255, 255, 255 };
 SDL_Surface* text_score = NULL;
 SDL_Surface* text_gameover = NULL;
+
+// Sound and music
+Mix_Music* music = NULL;
+Mix_Chunk* snd_player_fire = NULL;
+Mix_Chunk* snd_explosion = NULL;
 
 // Event structure
 SDL_Event event;
@@ -66,6 +94,8 @@ laser l[MAXLASERS];
 typedef struct enemy{
     bool alive;
     SDL_Rect dim;
+    int pathlength;
+    int dir;
 }enemy;
 
 enemy e[MAXENEMIES];
@@ -92,6 +122,8 @@ bool init()
     
     if( TTF_Init() == -1 ) { return false; }
     
+    if( Mix_OpenAudio( 22050, MIX_DEFAULT_FORMAT, 2, 4096 ) == -1 ) { return false; }
+    
     SDL_WM_SetCaption("Space Shooter",NULL);
     
     return true;
@@ -116,9 +148,14 @@ SDL_Surface *load_image(char * filename)
 
 bool load_files()
 {
+    //Font
     font = TTF_OpenFont( "res/VeraBd.ttf", 20 );
     if( font == NULL ) { return false; }
-
+    
+    //Textures
+    background = load_image("res/background.png");
+    if(background == NULL) { return false; }
+    
     sprite_player = load_image("res/player_ship.png");
     if(sprite_player == NULL) { return false; }
     
@@ -127,6 +164,16 @@ bool load_files()
     
     sprite_enemy = load_image("res/enemy_ship.png");
     if(sprite_enemy == NULL) { return false; }
+    
+    //Sound
+    music = Mix_LoadMUS("res/music.ogg");
+    if(music == NULL) { return false; }
+    
+    snd_player_fire = Mix_LoadWAV("res/player_fire.wav");
+    if(snd_player_fire == NULL) { return false; }
+    
+    snd_explosion = Mix_LoadWAV("res/explosion.wav");
+    if(snd_explosion == NULL) { return false; }
     
     return true;    
 }
@@ -146,11 +193,30 @@ void apply_surface( int x, int y, SDL_Surface* source, SDL_Surface* destination 
 
 void clean_up()
 {
+    SDL_FreeSurface(background);
     SDL_FreeSurface(sprite_player);
     SDL_FreeSurface(sprite_laser);
     SDL_FreeSurface(sprite_enemy);
     
+    Mix_FreeMusic(music);
+    Mix_FreeChunk(snd_player_fire);
+    Mix_FreeChunk(snd_explosion);
+    
     SDL_Quit();
+}
+
+void drawbackground()
+{
+    int scrollspeed = 5;
+    
+    if(background_y != 640)
+    {
+        background_y += scrollspeed;
+        apply_surface(0,background_y,background,screen);
+        apply_surface(0,background_y-640,background,screen);
+    }
+    else
+        background_y = 0;
 }
 
 void drawplayer()
@@ -193,7 +259,7 @@ void drawinfo()
     text_score = TTF_RenderText_Solid( font, score, textColor );
     
     if(text_score == NULL){ return; }
-    apply_surface( 5, 5+SCREEN_BOTTOM, text_score, screen );
+    apply_surface(5, 5+SCREEN_BOTTOM, text_score, screen);
     SDL_FreeSurface(text_score);
 }
 
@@ -202,7 +268,7 @@ void drawgameover()
     text_gameover = TTF_RenderText_Solid( font, "Game Over", textColor );
     
     if(text_gameover == NULL){ return; }
-    apply_surface( 260, 200, text_gameover, screen );
+    apply_surface(250, 200, text_gameover, screen);
     SDL_FreeSurface(text_gameover);
 }
 
@@ -251,6 +317,8 @@ void fire()
                 l[i].dim.x = p.dim.x + (p.dim.w/2);
                 l[i].dim.y = p.dim.y - l[i].dim.h;
                 laserTimer = 20;
+                Mix_VolumeChunk(snd_player_fire, 32);
+                Mix_PlayChannel( -1, snd_player_fire, 0 );
                 break;
             }
         }
@@ -288,28 +356,27 @@ void spawnenemies()
         }
     }
 
-    if(enemyTimer == 0)
-    {
         for(i=0;i<MAXENEMIES;i++)
         {
             e[i].dim.w = 58;
             e[i].dim.h = 56;
             
-            if(e[i].alive != true)
+            if(e[i].alive != true && enemyTimer == 0)
             {
                 e[i].alive = true;
+                e[i].pathlength = 0;
+                e[i].dir = randrange(0,1);
                 e[i].dim.x = randrange(0,SCREEN_WIDTH - e[i].dim.w);
-                e[i].dim.y = randrange(-100,-50);
+                e[i].dim.y = randrange(-500,-50);
                 break;
             }
         }
-    }
        
 }
 
 void moveenemies()
 {
-    int movespeed = 3;
+    int movespeed = 2;
     
     int i;
 
@@ -317,10 +384,39 @@ void moveenemies()
     {
         if(e[i].alive == true)
         {
-            if(p.dim.x > e[i].dim.x)
-                e[i].dim.x += 1;
-            else if(p.dim.x < e[i].dim.x)
-                e[i].dim.x -= 1;
+            if(e[i].pathlength == 0)
+            {
+                e[i].pathlength = randrange(80,SCREEN_WIDTH/2);
+            }
+            if(e[i].pathlength != 0)
+            {
+                if(e[i].dir == 0)
+                {
+                    if(e[i].dim.x + e[i].dim.w < SCREEN_WIDTH)
+                    {
+                        e[i].dim.x += movespeed;
+                        e[i].pathlength--;
+                    }
+                    if(e[i].dim.x + e[i].dim.w >= SCREEN_WIDTH || e[i].pathlength == 0)
+                    {
+                        e[i].dir = 1;
+                        e[i].pathlength = 0;
+                    }
+                }
+                else if(e[i].dir == 1)
+                {
+                    if(e[i].dim.x > 0)
+                    {
+                        e[i].dim.x -= movespeed;
+                        e[i].pathlength--;
+                    }
+                    if(e[i].dim.x <= 0 || e[i].pathlength == 0)
+                    {
+                        e[i].dir = 0;
+                        e[i].pathlength = 0;
+                    }
+                }
+            }
             
             e[i].dim.y += movespeed;
         }
@@ -328,6 +424,8 @@ void moveenemies()
         if(e[i].dim.y > SCREEN_BOTTOM+e[i].dim.h)
         {
             e[i].alive = false;
+            e[i].dim.x = 0;
+            e[i].dim.y = 0;
             if(game_over == false)
                 p.score -= 50;
             if(p.score < 0)
@@ -350,14 +448,14 @@ void testcollision()
         {
             if(l[i].alive == true && e[j].alive == true)
             {
-                if(l[i].dim.y <= (e[j].dim.y + e[j].dim.h) &&
-                   l[i].dim.x <= (e[j].dim.x + e[j].dim.w) &&
-                   (l[i].dim.x + l[i].dim.w) >= e[j].dim.x)
+                if(l[i].dim.y <= (e[j].dim.y + e[j].dim.h) && l[i].dim.x <= (e[j].dim.x + e[j].dim.w) && (l[i].dim.x + l[i].dim.w) >= e[j].dim.x)
                 {
                     e[j].alive = false;
                     l[i].alive = false;
                     enemyTimer = 30;
                     p.score += 10;
+                    Mix_VolumeChunk(snd_explosion, 64);
+                    Mix_PlayChannel( -1, snd_explosion, 0 );
                     break;
                 }
             }
@@ -369,16 +467,24 @@ void testcollision()
     {
         if(e[j].alive == true && p.alive == true)
         {
-            if((e[j].dim.y + e[j].dim.h) >= p.dim.y &&
-               e[j].dim.x <= (p.dim.x + p.dim.w) &&
-               (e[j].dim.x + e[j].dim.w) >= p.dim.x)
+            if((e[j].dim.y + e[j].dim.h) >= p.dim.y && !(e[j].dim.y >= p.dim.y + p.dim.h) && e[j].dim.x <= (p.dim.x + p.dim.w) && (e[j].dim.x + e[j].dim.w) >= p.dim.x)
             {
                 p.alive = false;
                 game_over = true;
+                Mix_VolumeChunk(snd_explosion, 64);
+                Mix_PlayChannel( -1, snd_explosion, 0 );
                 break;
             }
         }
     }
+}
+
+void musicplay()
+{
+    if(Mix_PlayMusic(music, -1) == -1)
+        return;
+    else
+        Mix_VolumeMusic(128);
 }
 
 void newgame()
@@ -404,6 +510,7 @@ int main(int argc, char* argv[])
     
     //Start a new game
     newgame();
+    musicplay();
     
     while(quit == false)
     {
@@ -434,7 +541,7 @@ int main(int argc, char* argv[])
                 }
                 if(game_over == true)
                 {
-                    if(event.key.keysym.sym == SDLK_RETURN)
+                    if(event.key.keysym.sym == SDLK_SPACE)
                     {
                         newgame();
                     }
@@ -466,6 +573,9 @@ int main(int argc, char* argv[])
         
         // Fill the screen with black
         SDL_FillRect(screen,NULL, 0x000000);
+        
+        // Draw background
+        drawbackground();
         
         if(game_over == false)
         {
