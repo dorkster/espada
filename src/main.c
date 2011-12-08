@@ -149,7 +149,7 @@ SDL_Surface *load_image(char * filename)
 bool load_files()
 {
     //Font
-    font = TTF_OpenFont( "res/VeraBd.ttf", 20 );
+    font = TTF_OpenFont( "res/LCD_Solid.ttf", 20 );
     if( font == NULL ) { return false; }
     
     //Textures
@@ -207,16 +207,18 @@ void clean_up()
 
 void drawbackground()
 {
-    int scrollspeed = 5;
+    int scrollspeed = 10;
     
-    if(background_y != 640)
+    if(background_y < 640)
     {
         background_y += scrollspeed;
-        apply_surface(0,background_y,background,screen);
-        apply_surface(0,background_y-640,background,screen);
     }
     else
         background_y = 0;
+        
+    apply_surface(0,background_y,background,screen);
+    apply_surface(0,background_y-640,background,screen);
+
 }
 
 void drawplayer()
@@ -276,15 +278,15 @@ void spawnplayer()
 {
     p.alive = true;
     p.score = 0;
-    p.dim.w = 50;
-    p.dim.h = 49;
+    p.dim.w = 64;
+    p.dim.h = 64;
     p.dim.x = 295;
     p.dim.y = SCREEN_BOTTOM - p.dim.h;
 }
 
 void moveplayer()
 {
-    int movespeed = 6;
+    int movespeed = 8;
     
     if(action_moveleft == true)
     {
@@ -308,8 +310,8 @@ void fire()
     {
         for(i=0;i<MAXLASERS;i++)
         {
-            l[i].dim.w = 9;
-            l[i].dim.h = 39;
+            l[i].dim.w = 8;
+            l[i].dim.h = 16;
             
             if(l[i].alive != true)
             {
@@ -358,8 +360,8 @@ void spawnenemies()
 
         for(i=0;i<MAXENEMIES;i++)
         {
-            e[i].dim.w = 58;
-            e[i].dim.h = 56;
+            e[i].dim.w = 64;
+            e[i].dim.h = 32;
             
             if(e[i].alive != true && enemyTimer == 0)
             {
@@ -386,7 +388,7 @@ void moveenemies()
         {
             if(e[i].pathlength == 0)
             {
-                e[i].pathlength = randrange(80,SCREEN_WIDTH/2);
+                e[i].pathlength = randrange(10,SCREEN_WIDTH/2);
             }
             if(e[i].pathlength != 0)
             {
