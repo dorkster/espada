@@ -29,7 +29,7 @@
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
 #define SCREEN_BPP 32
-#define SCREEN_BOTTOM SCREEN_HEIGHT-30
+#define SCREEN_BOTTOM SCREEN_HEIGHT-32
 
 typedef enum { false = 0, true = 1 } bool;
 
@@ -55,6 +55,8 @@ int background_y = 0;
 
 // Sprites
 SDL_Surface* sprite_player = NULL;
+SDL_Surface* sprite_health_full = NULL;
+SDL_Surface* sprite_health_empty = NULL;
 SDL_Surface* sprite_laser = NULL;
 SDL_Surface* sprite_laser_enemy = NULL;
 SDL_Surface* sprite_enemy = NULL;
@@ -165,6 +167,12 @@ bool load_files()
     sprite_player = load_image("res/player_ship.png");
     if(sprite_player == NULL) { return false; }
     
+    sprite_health_full = load_image("res/health_full.png");
+    if(sprite_health_full == NULL) { return false; }
+    
+    sprite_health_empty = load_image("res/health_empty.png");
+    if(sprite_health_empty == NULL) { return false; }
+    
     sprite_laser = load_image("res/laser.png");
     if(sprite_laser == NULL) { return false; }
     
@@ -204,6 +212,8 @@ void clean_up()
 {
     SDL_FreeSurface(background);
     SDL_FreeSurface(sprite_player);
+    SDL_FreeSurface(sprite_health_full);
+    SDL_FreeSurface(sprite_health_empty);
     SDL_FreeSurface(sprite_laser);
     SDL_FreeSurface(sprite_laser_enemy);
     SDL_FreeSurface(sprite_enemy);
@@ -278,6 +288,8 @@ void drawenemies()
 
 void drawinfo()
 {
+    int i;
+    
     char score[64];
     
     sprintf(score,"Score: %d",p.score);
@@ -289,12 +301,18 @@ void drawinfo()
     
     char health[64];
     
-    sprintf(health,"Health: %d",p.health);
+    sprintf(health,"Health:");
     text_health = TTF_RenderText_Solid( font, health, textColor );
     
     if(text_health == NULL){ return; }
     apply_surface(SCREEN_WIDTH-200, 5+SCREEN_BOTTOM, text_health, screen);
     SDL_FreeSurface(text_health);
+    
+    for(i=1;i<=p.health;i++)
+        apply_surface((SCREEN_WIDTH-120)+(i*18), 3+SCREEN_BOTTOM, sprite_health_full, screen);
+    
+    for(i=p.health+1;i<=5;i++)
+        apply_surface((SCREEN_WIDTH-120)+(i*18), 3+SCREEN_BOTTOM, sprite_health_empty, screen);
 }
 
 void drawgameover()
