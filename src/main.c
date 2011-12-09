@@ -44,7 +44,6 @@ const int FPS = 60;
 int startTimer;
 int endTimer;
 int deltaTimer;
-int laserTimer;
 int enemyTimer;
 
 // The main drawing area
@@ -57,12 +56,14 @@ int background_y = 0;
 // Sprites
 SDL_Surface* sprite_player = NULL;
 SDL_Surface* sprite_laser = NULL;
+SDL_Surface* sprite_laser_enemy = NULL;
 SDL_Surface* sprite_enemy = NULL;
 
 // Text surfaces
 TTF_Font *font = NULL;
 SDL_Color textColor = { 255, 255, 255 };
 SDL_Surface* text_score = NULL;
+SDL_Surface* text_health = NULL;
 SDL_Surface* text_gameover = NULL;
 
 // Sound and music
@@ -76,26 +77,29 @@ SDL_Event event;
 bool game_init = true;
 bool game_over = false;
 
-typedef struct player{
-    bool alive;
-    SDL_Rect dim;
-    int score;
-}player;
-
-player p;
-
 typedef struct laser{
     bool alive;
     SDL_Rect dim;
 }laser;
 
-laser l[MAXLASERS];
+typedef struct player{
+    bool alive;
+    SDL_Rect dim;
+    int score;
+    int health;
+    int laserTimer;
+    laser l[MAXLASERS];
+}player;
+
+player p;
 
 typedef struct enemy{
     bool alive;
     SDL_Rect dim;
     int pathlength;
     int dir;
+    int laserTimer;
+    laser l[MAXLASERS];
 }enemy;
 
 enemy e[MAXENEMIES];
@@ -103,6 +107,8 @@ enemy e[MAXENEMIES];
 // Input actions
 bool action_moveleft = false;
 bool action_moveright = false;
+bool action_moveup = false;
+bool action_movedown = false;
 bool action_fire = false;
 
 // Generate a random number in a specific range
@@ -162,6 +168,9 @@ bool load_files()
     sprite_laser = load_image("res/laser.png");
     if(sprite_laser == NULL) { return false; }
     
+    sprite_laser_enemy = load_image("res/laser_enemy.png");
+    if(sprite_laser_enemy == NULL) { return false; }
+    
     sprite_enemy = load_image("res/enemy_ship.png");
     if(sprite_enemy == NULL) { return false; }
     
@@ -196,6 +205,7 @@ void clean_up()
     SDL_FreeSurface(background);
     SDL_FreeSurface(sprite_player);
     SDL_FreeSurface(sprite_laser);
+    SDL_FreeSurface(sprite_laser_enemy);
     SDL_FreeSurface(sprite_enemy);
     
     Mix_FreeMusic(music);
@@ -229,13 +239,26 @@ void drawplayer()
 
 void drawlasers()
 {
-    int i;
+    int i,j;
     
+    //player lasers
     for(i=0;i<MAXLASERS;i++)
     {
-        if(l[i].alive == true)
+        if(p.l[i].alive == true)
         {
-            apply_surface(l[i].dim.x,l[i].dim.y,sprite_laser,screen);
+            apply_surface(p.l[i].dim.x,p.l[i].dim.y,sprite_laser,screen);
+        }
+    }
+    
+    // enemy lasers
+    for(j=0;j<MAXLASERS;j++)
+    {
+        for(i=0;i<MAXLASERS;i++)
+        {
+            if(e[j].l[i].alive == true)
+            {
+                apply_surface(e[j].l[i].dim.x,e[j].l[i].dim.y,sprite_laser_enemy,screen);
+            }
         }
     }
 }
@@ -263,6 +286,15 @@ void drawinfo()
     if(text_score == NULL){ return; }
     apply_surface(5, 5+SCREEN_BOTTOM, text_score, screen);
     SDL_FreeSurface(text_score);
+    
+    char health[64];
+    
+    sprintf(health,"Health: %d",p.health);
+    text_health = TTF_RenderText_Solid( font, health, textColor );
+    
+    if(text_health == NULL){ return; }
+    apply_surface(SCREEN_WIDTH-200, 5+SCREEN_BOTTOM, text_health, screen);
+    SDL_FreeSurface(text_health);
 }
 
 void drawgameover()
@@ -278,6 +310,7 @@ void spawnplayer()
 {
     p.alive = true;
     p.score = 0;
+    p.health = 5;
     p.dim.w = 64;
     p.dim.h = 64;
     p.dim.x = 295;
@@ -300,25 +333,37 @@ void moveplayer()
         if((p.dim.x + p.dim.w) > SCREEN_WIDTH)
             p.dim.x = SCREEN_WIDTH - p.dim.w;
     }
+    if(action_moveup == true)
+    {
+        p.dim.y -= movespeed/2;
+        if(p.dim.y < 0)
+            p.dim.y = 0;
+    }
+    else if(action_movedown == true)
+    {
+        p.dim.y += movespeed/2;
+        if((p.dim.y + p.dim.h) > SCREEN_BOTTOM)
+            p.dim.y = SCREEN_BOTTOM - p.dim.h;
+    }
 }
 
 void fire()
 {
     int i;
-
-    if(action_fire == true && laserTimer == 0)
+    
+    if(action_fire == true && p.laserTimer == 0)
     {
         for(i=0;i<MAXLASERS;i++)
         {
-            l[i].dim.w = 8;
-            l[i].dim.h = 16;
+            p.l[i].dim.w = 8;
+            p.l[i].dim.h = 16;
             
-            if(l[i].alive != true)
+            if(p.l[i].alive != true)
             {
-                l[i].alive = true;
-                l[i].dim.x = p.dim.x + (p.dim.w/2);
-                l[i].dim.y = p.dim.y - l[i].dim.h;
-                laserTimer = 20;
+                p.l[i].alive = true;
+                p.l[i].dim.x = p.dim.x + (p.dim.w/2);
+                p.l[i].dim.y = p.dim.y - p.l[i].dim.h;
+                p.laserTimer = 15;
                 Mix_VolumeChunk(snd_player_fire, 32);
                 Mix_PlayChannel( -1, snd_player_fire, 0 );
                 break;
@@ -326,23 +371,67 @@ void fire()
         }
     }
     
-    if(laserTimer > 0)
-        laserTimer--;
+    if(p.laserTimer > 0)
+        p.laserTimer--;
+}
+
+void enemyfire()
+{
+    int i,j;
+    
+    for(j=0;j<MAXENEMIES;j++)
+    {
+        if(e[j].laserTimer == 0 && e[j].alive && (e[j].dim.y + e[j].dim.h) >= 0)
+        {
+            for(i=0;i<MAXLASERS;i++)
+            {
+                e[j].l[i].dim.w = 8;
+                e[j].l[i].dim.h = 16;
+                
+                if(e[j].l[i].alive != true)
+                {
+                    e[j].l[i].alive = true;
+                    e[j].l[i].dim.x = e[j].dim.x + (e[j].dim.w/2);
+                    e[j].l[i].dim.y = e[j].dim.y + e[j].l[i].dim.h;
+                    e[j].laserTimer = randrange(100,250);
+                    Mix_VolumeChunk(snd_player_fire, 8);
+                    Mix_PlayChannel( -1, snd_player_fire, 0 );
+                    break;
+                }
+            }
+        }
+        
+        if(e[j].laserTimer > 0)
+            e[j].laserTimer--;
+    }
 }
 
 void movelasers()
 {
-    int movespeed = 20;
-    int i;
+    int movespeed = 10;
+    int i,j;
     
     for(i=0;i<MAXLASERS;i++)
     {
-        if(l[i].alive == true)
+        if(p.l[i].alive == true)
         {
-            l[i].dim.y -= movespeed;
+            p.l[i].dim.y -= movespeed;
         }
-        if(l[i].dim.y < 0)
-            l[i].alive = false;
+        if(p.l[i].dim.y < 0)
+            p.l[i].alive = false;
+    }
+    
+    for(j=0;j<MAXENEMIES;j++)
+    {
+        for(i=0;i<MAXLASERS;i++)
+        {
+            if(e[j].l[i].alive == true)
+            {
+                e[j].l[i].dim.y += movespeed/2;
+            }
+            if(e[j].l[i].dim.y > SCREEN_HEIGHT)
+                e[j].l[i].alive = false;
+        }
     }
 }
 
@@ -367,6 +456,7 @@ void spawnenemies()
             {
                 e[i].alive = true;
                 e[i].pathlength = 0;
+                e[i].laserTimer = 0;
                 e[i].dir = randrange(0,1);
                 e[i].dim.x = randrange(0,SCREEN_WIDTH - e[i].dim.w);
                 e[i].dim.y = randrange(-500,-50);
@@ -420,7 +510,7 @@ void moveenemies()
                 }
             }
             
-            e[i].dim.y += movespeed;
+            e[i].dim.y += 1;
         }
         
         if(e[i].dim.y > SCREEN_BOTTOM+e[i].dim.h)
@@ -439,23 +529,61 @@ void moveenemies()
         enemyTimer--;
 }
 
-void testcollision()
+bool rect_col( SDL_Rect A, SDL_Rect B ) // Thanks to lazyfoo.net
+{    
+    //If any of the sides from A are outside of B
+    if( (A.y + A.h) <= B.y )
+        return false;
+    
+    if( A.y >= (B.y + B.h) )
+        return false;
+    
+    if( (A.x + A.w) <= B.x )
+        return false;
+    
+    if( A.x >= (B.x + B.w) )
+        return false;
+    
+    //If none of the sides from A are outside B
+    return true;
+}
+
+void testcollisions()
 {
     int i,j;
     
-    // Check if lasers hit enemies
+    // Check if player lasers hit enemies
     for(i=0;i<MAXLASERS;i++)
     {
         for(j=0;j<MAXENEMIES;j++)
         {
-            if(l[i].alive == true && e[j].alive == true)
+            if(p.alive && p.l[i].alive == true && e[j].alive == true && (e[j].dim.y + e[j].dim.h) >= 0)
             {
-                if(l[i].dim.y <= (e[j].dim.y + e[j].dim.h) && l[i].dim.x <= (e[j].dim.x + e[j].dim.w) && (l[i].dim.x + l[i].dim.w) >= e[j].dim.x)
+                if(rect_col(p.l[i].dim,e[j].dim) == true)
                 {
                     e[j].alive = false;
-                    l[i].alive = false;
+                    p.l[i].alive = false;
                     enemyTimer = 30;
                     p.score += 10;
+                    Mix_VolumeChunk(snd_explosion, 64);
+                    Mix_PlayChannel( -1, snd_explosion, 0 );
+                    break;
+                }
+            }
+        }
+    }
+    
+    // Check if enemy lasers hit player
+    for(j=0;j<MAXENEMIES;j++)
+    {
+        for(i=0;i<MAXLASERS;i++)
+        {
+            if(p.alive == true && e[j].l[i].alive == true)
+            {
+                if(rect_col(p.dim,e[j].l[i].dim) == true)
+                {
+                    e[j].l[i].alive = false;
+                    p.health -= 1;
                     Mix_VolumeChunk(snd_explosion, 64);
                     Mix_PlayChannel( -1, snd_explosion, 0 );
                     break;
@@ -469,10 +597,9 @@ void testcollision()
     {
         if(e[j].alive == true && p.alive == true)
         {
-            if((e[j].dim.y + e[j].dim.h) >= p.dim.y && !(e[j].dim.y >= p.dim.y + p.dim.h) && e[j].dim.x <= (p.dim.x + p.dim.w) && (e[j].dim.x + e[j].dim.w) >= p.dim.x)
+            if(rect_col(e[j].dim,p.dim) == true)
             {
-                p.alive = false;
-                game_over = true;
+                p.health -= 2;
                 Mix_VolumeChunk(snd_explosion, 64);
                 Mix_PlayChannel( -1, snd_explosion, 0 );
                 break;
@@ -489,6 +616,18 @@ void musicplay()
         Mix_VolumeMusic(128);
 }
 
+void destroylasers()
+{
+    int i,j;
+    
+    for(i=0;i<MAXLASERS;i++)
+        p.l[i].alive = false;
+    
+    for(j=0;j<MAXENEMIES;j++)
+        for(i=0;i<MAXLASERS;i++)
+            e[j].l[i].alive = false;
+}
+
 void newgame()
 {
     game_init = true;
@@ -496,6 +635,9 @@ void newgame()
     action_fire = false;
     action_moveleft = false;
     action_moveright = false;
+    action_moveup = false;
+    action_movedown = false;
+    destroylasers();
     spawnplayer();
     spawnenemies();
     game_init = false;
@@ -536,6 +678,14 @@ int main(int argc, char* argv[])
                     {
                         action_moveright = true;
                     }
+                    if(event.key.keysym.sym == SDLK_UP)
+                    {
+                        action_moveup = true;
+                    }
+                    if(event.key.keysym.sym == SDLK_DOWN)
+                    {
+                        action_movedown = true;
+                    }
                     if(event.key.keysym.sym == SDLK_SPACE)
                     {
                         action_fire = true;
@@ -560,6 +710,14 @@ int main(int argc, char* argv[])
                     if(event.key.keysym.sym == SDLK_RIGHT)
                     {
                         action_moveright = false;
+                    }
+                    if(event.key.keysym.sym == SDLK_UP)
+                    {
+                        action_moveup = false;
+                    }
+                    if(event.key.keysym.sym == SDLK_DOWN)
+                    {
+                        action_movedown = false;
                     }
                     if(event.key.keysym.sym == SDLK_SPACE)
                     {
@@ -587,14 +745,24 @@ int main(int argc, char* argv[])
             
             // Draw fire and lasers
             fire();
-            movelasers();
-            drawlasers();
         }
         
         // Spawn and draw enemies
         spawnenemies();
         moveenemies();
+        enemyfire();
         drawenemies();
+        
+        movelasers();
+        drawlasers();
+        
+        // Check if player is dead
+        if(p.health <= 0)
+        {
+            p.health = 0;
+            p.alive = false;
+            game_over = true;
+        }
         
         // Draw the gameover text when the game is over
         if(game_over == true)
@@ -606,7 +774,7 @@ int main(int argc, char* argv[])
         drawinfo();
         
         // Collision Detection
-        testcollision();
+        testcollisions();
         
         //Update the screen
         if(SDL_Flip(screen) == -1) { return 1; }
