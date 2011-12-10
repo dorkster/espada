@@ -23,6 +23,8 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include "clips.h"
+
 #define MAXLASERS 5
 #define MAXENEMIES 4
 
@@ -37,7 +39,7 @@ int randrange(int low, int high);
 bool init();
 SDL_Surface *load_image(char * filename, bool withalpha);
 bool load_files();
-void apply_surface( int x, int y, int alpha, SDL_Surface* source, SDL_Surface* destination );
+void apply_surface( int x, int y, int alpha, SDL_Surface* source, SDL_Surface* destination, SDL_Rect* clip );
 void clean_up();
 
 const int FPS = 60;
@@ -45,6 +47,7 @@ int startTimer;
 int endTimer;
 int deltaTimer;
 int enemyTimer;
+int animationTimer;
 
 // The main drawing area
 SDL_Surface* screen = NULL;
@@ -93,6 +96,7 @@ typedef struct player{
     laser l[MAXLASERS];
     bool invuln;
     int invulnTimer;
+    int frame;
 }player;
 
 player p;
@@ -135,6 +139,8 @@ bool init()
     if( Mix_OpenAudio( 22050, MIX_DEFAULT_FORMAT, 2, 4096 ) == -1 ) { return false; }
     
     SDL_WM_SetCaption("Space Shooter",NULL);
+    
+    //~ SDL_ShowCursor(SDL_DISABLE);
     
     return true;
 }
@@ -199,10 +205,10 @@ bool load_files()
     snd_explosion = Mix_LoadWAV("res/explosion.wav");
     if(snd_explosion == NULL) { return false; }
     
-    return true;    
+    return true;
 }
 
-void apply_surface( int x, int y, int alpha, SDL_Surface* source, SDL_Surface* destination )
+void apply_surface( int x, int y, int alpha, SDL_Surface* source, SDL_Surface* destination, SDL_Rect* clip )
 {
     //Make a temporary rectangle to hold the offsets
     SDL_Rect offset;
@@ -213,7 +219,17 @@ void apply_surface( int x, int y, int alpha, SDL_Surface* source, SDL_Surface* d
     
     //Blit the surface
     SDL_SetAlpha( source, SDL_SRCALPHA, alpha);
-    SDL_BlitSurface( source, NULL, destination, &offset );
+    SDL_BlitSurface( source, clip, destination, &offset );
+}
+
+void frameadvance(int* frame,int totalframes)
+{
+    if(animationTimer == 0)
+    {
+        *frame += 1;
+        if(*frame > totalframes-1)
+            *frame = 0;
+    }
 }
 
 void clean_up()
@@ -244,19 +260,26 @@ void drawbackground()
     else
         background_y = 0;
         
-    apply_surface(0,background_y,255,background,screen);
-    apply_surface(0,background_y-640,255,background,screen);
+    apply_surface(0,background_y,255,background,screen,NULL);
+    apply_surface(0,background_y-640,255,background,screen,NULL);
 
 }
 
 void drawplayer()
 {
+    int alpha;
+        
     if(p.alive == true)
     {
         if(p.invuln == false)
-            apply_surface(p.dim.x,p.dim.y,255,sprite_player,screen);
+            alpha = 255;
         else
-            apply_surface(p.dim.x,p.dim.y,127,sprite_player,screen);
+            alpha = 127;
+        
+        apply_surface(p.dim.x,p.dim.y,alpha,sprite_player,screen,&clipPlayerNorm[p.frame]);
+        
+        int totalframes = sizeof(clipPlayerNorm)/sizeof(SDL_Rect);
+        frameadvance(&p.frame,totalframes);
     }
 }
 
@@ -269,7 +292,7 @@ void drawlasers()
     {
         if(p.l[i].alive == true)
         {
-            apply_surface(p.l[i].dim.x,p.l[i].dim.y,255,sprite_laser,screen);
+            apply_surface(p.l[i].dim.x,p.l[i].dim.y,255,sprite_laser,screen,NULL);
         }
     }
     
@@ -280,7 +303,7 @@ void drawlasers()
         {
             if(e[j].l[i].alive == true)
             {
-                apply_surface(e[j].l[i].dim.x,e[j].l[i].dim.y,255,sprite_laser_enemy,screen);
+                apply_surface(e[j].l[i].dim.x,e[j].l[i].dim.y,255,sprite_laser_enemy,screen,NULL);
             }
         }
     }
@@ -294,7 +317,7 @@ void drawenemies()
     {
         if(e[i].alive == true)
         {
-            apply_surface(e[i].dim.x,e[i].dim.y,255,sprite_enemy,screen);
+            apply_surface(e[i].dim.x,e[i].dim.y,255,sprite_enemy,screen,NULL);
         }
     }
 }
@@ -309,7 +332,7 @@ void drawinfo()
     text_score = TTF_RenderText_Solid( font, score, textColor );
     
     if(text_score == NULL){ return; }
-    apply_surface(5, 5+SCREEN_BOTTOM, 255, text_score, screen);
+    apply_surface(5, 5+SCREEN_BOTTOM, 255, text_score, screen, NULL);
     SDL_FreeSurface(text_score);
     
     char health[64];
@@ -318,14 +341,14 @@ void drawinfo()
     text_health = TTF_RenderText_Solid( font, health, textColor );
     
     if(text_health == NULL){ return; }
-    apply_surface(SCREEN_WIDTH-200, 5+SCREEN_BOTTOM, 255, text_health, screen);
+    apply_surface(SCREEN_WIDTH-200, 5+SCREEN_BOTTOM, 255, text_health, screen, NULL);
     SDL_FreeSurface(text_health);
     
     for(i=1;i<=p.health;i++)
-        apply_surface((SCREEN_WIDTH-120)+(i*18), 3+SCREEN_BOTTOM, 255, sprite_health_full, screen);
+        apply_surface((SCREEN_WIDTH-120)+(i*18), 3+SCREEN_BOTTOM, 255, sprite_health_full, screen, NULL);
     
     for(i=p.health+1;i<=5;i++)
-        apply_surface((SCREEN_WIDTH-120)+(i*18), 3+SCREEN_BOTTOM, 255, sprite_health_empty, screen);
+        apply_surface((SCREEN_WIDTH-120)+(i*18), 3+SCREEN_BOTTOM, 255, sprite_health_empty, screen, NULL);
 }
 
 void drawgameover()
@@ -333,7 +356,7 @@ void drawgameover()
     text_gameover = TTF_RenderText_Solid( font, "Game Over", textColor );
     
     if(text_gameover == NULL){ return; }
-    apply_surface(250, 200, 255, text_gameover, screen);
+    apply_surface(250, 200, 255, text_gameover, screen, NULL);
     SDL_FreeSurface(text_gameover);
 }
 
@@ -344,10 +367,13 @@ void spawnplayer()
     p.invulnTimer = 0;
     p.score = 0;
     p.health = 5;
+    
     p.dim.w = 64;
     p.dim.h = 64;
     p.dim.x = 295;
     p.dim.y = SCREEN_BOTTOM - p.dim.h;
+    
+    p.frame = 0;
 }
 
 void updateplayer()
@@ -702,7 +728,8 @@ int main(int argc, char* argv[])
     
     //Start a new game
     newgame();
-    musicplay();
+    set_clips();
+    //~ musicplay();
     
     while(quit == false)
     {
@@ -824,6 +851,12 @@ int main(int argc, char* argv[])
         
         // Collision Detection
         testcollisions();
+        
+        //Update animations
+        if(animationTimer > 0)
+            animationTimer--;
+        else
+            animationTimer = 10;
         
         //Update the screen
         if(SDL_Flip(screen) == -1) { return 1; }
