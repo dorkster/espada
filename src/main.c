@@ -197,7 +197,7 @@ bool load_files()
     if(sprite_enemy == NULL) { return false; }
     
     //Sound
-    music = Mix_LoadMUS("res/music.ogg");
+    music = Mix_LoadMUS("res/music2.ogg");
     if(music == NULL) { return false; }
     
     snd_player_fire = Mix_LoadWAV("res/player_fire.wav");
@@ -734,7 +734,7 @@ int main(int argc, char* argv[])
     //Start a new game
     newgame();
     set_clips();
-    //~ musicplay();
+    musicplay();
     
     while(quit == false)
     {
