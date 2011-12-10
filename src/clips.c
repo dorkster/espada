@@ -14,6 +14,17 @@ void set_clips()
     clipPlayerNorm[1].w = 64;
     clipPlayerNorm[1].h = 64;
     
+    // invulnerable player
+    clipPlayerInvuln[0].x = 0;
+    clipPlayerInvuln[0].y = 64;
+    clipPlayerInvuln[0].w = 64;
+    clipPlayerInvuln[0].h = 64;
+
+    clipPlayerInvuln[1].x = 64;
+    clipPlayerInvuln[1].y = 64;
+    clipPlayerInvuln[1].w = 64;
+    clipPlayerInvuln[1].h = 64;
+    
     // normal enemy
     clipEnemyNorm[0].x = 0;
     clipEnemyNorm[0].y = 0;

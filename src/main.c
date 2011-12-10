@@ -273,11 +273,16 @@ void drawplayer()
     if(p.alive == true)
     {
         if(p.invuln == false)
+        {
             alpha = 255;
+            apply_surface(p.dim.x,p.dim.y,alpha,sprite_player,screen,&clipPlayerNorm[p.frame]);
+        }
         else
+        {
             alpha = 127;
+            apply_surface(p.dim.x,p.dim.y,alpha,sprite_player,screen,&clipPlayerInvuln[p.frame]);
+        }
         
-        apply_surface(p.dim.x,p.dim.y,alpha,sprite_player,screen,&clipPlayerNorm[p.frame]);
         
         int totalframes = sizeof(clipPlayerNorm)/sizeof(SDL_Rect);
         frameadvance(&p.frame,totalframes);
@@ -474,7 +479,7 @@ void enemyfire()
                     e[j].l[i].dim.x = e[j].dim.x + (e[j].dim.w/2);
                     e[j].l[i].dim.y = e[j].dim.y + e[j].l[i].dim.h;
                     e[j].laserTimer = randrange(100,250);
-                    Mix_VolumeChunk(snd_player_fire, 8);
+                    Mix_VolumeChunk(snd_player_fire, 16);
                     Mix_PlayChannel( -1, snd_player_fire, 0 );
                     break;
                 }
@@ -663,9 +668,11 @@ void testcollisions()
             {
                 if(rect_col(p.dim,e[j].l[i].dim) == true)
                 {
-                    e[j].l[i].alive = false;
                     if(p.invuln == false)
+                    {
+                        e[j].l[i].alive = false;
                         damageplayer(1);
+                    }
                     break;
                 }
             }
@@ -680,7 +687,10 @@ void testcollisions()
             if(rect_col(e[j].dim,p.dim) == true)
             {
                 if(p.invuln == false)
+                {
+                    e[j].alive = false;
                     damageplayer(2);
+                }
                 break;
             }
         }
@@ -861,7 +871,7 @@ int main(int argc, char* argv[])
         if(animationTimer > 0)
             animationTimer--;
         else
-            animationTimer = 10;
+            animationTimer = 2;
         
         //Update the screen
         if(SDL_Flip(screen) == -1) { return 1; }
