@@ -35,9 +35,9 @@ typedef enum { false = 0, true = 1 } bool;
 
 int randrange(int low, int high);
 bool init();
-SDL_Surface *load_image(char * filename);
+SDL_Surface *load_image(char * filename, bool withalpha);
 bool load_files();
-void apply_surface( int x, int y, SDL_Surface* source, SDL_Surface* destination );
+void apply_surface( int x, int y, int alpha, SDL_Surface* source, SDL_Surface* destination );
 void clean_up();
 
 const int FPS = 60;
@@ -91,6 +91,8 @@ typedef struct player{
     int health;
     int laserTimer;
     laser l[MAXLASERS];
+    bool invuln;
+    int invulnTimer;
 }player;
 
 player p;
@@ -138,7 +140,7 @@ bool init()
 }
 
 
-SDL_Surface *load_image(char * filename)
+SDL_Surface *load_image(char * filename, bool withalpha)
 {
     SDL_Surface *loadedImage = NULL;
     SDL_Surface *optimizedImage = NULL;
@@ -147,7 +149,12 @@ SDL_Surface *load_image(char * filename)
     
     if(loadedImage != NULL)
     {
-        optimizedImage = SDL_DisplayFormatAlpha(loadedImage);
+        optimizedImage = SDL_DisplayFormat(loadedImage);
+        if(optimizedImage != NULL && withalpha == true)
+        {
+            Uint32 colorkey = SDL_MapRGB( optimizedImage->format, 0xFF, 0, 0xFF );
+            SDL_SetColorKey( optimizedImage, SDL_SRCCOLORKEY, colorkey );
+        }
         SDL_FreeSurface(loadedImage);
     }
     
@@ -161,25 +168,25 @@ bool load_files()
     if( font == NULL ) { return false; }
     
     //Textures
-    background = load_image("res/background.png");
+    background = load_image("res/background.png",false);
     if(background == NULL) { return false; }
     
-    sprite_player = load_image("res/player_ship.png");
+    sprite_player = load_image("res/player_ship.png",true);
     if(sprite_player == NULL) { return false; }
     
-    sprite_health_full = load_image("res/health_full.png");
+    sprite_health_full = load_image("res/health_full.png",true);
     if(sprite_health_full == NULL) { return false; }
     
-    sprite_health_empty = load_image("res/health_empty.png");
+    sprite_health_empty = load_image("res/health_empty.png",true);
     if(sprite_health_empty == NULL) { return false; }
     
-    sprite_laser = load_image("res/laser.png");
+    sprite_laser = load_image("res/laser.png",true);
     if(sprite_laser == NULL) { return false; }
     
-    sprite_laser_enemy = load_image("res/laser_enemy.png");
+    sprite_laser_enemy = load_image("res/laser_enemy.png",true);
     if(sprite_laser_enemy == NULL) { return false; }
     
-    sprite_enemy = load_image("res/enemy_ship.png");
+    sprite_enemy = load_image("res/enemy_ship.png",true);
     if(sprite_enemy == NULL) { return false; }
     
     //Sound
@@ -195,7 +202,7 @@ bool load_files()
     return true;    
 }
 
-void apply_surface( int x, int y, SDL_Surface* source, SDL_Surface* destination )
+void apply_surface( int x, int y, int alpha, SDL_Surface* source, SDL_Surface* destination )
 {
     //Make a temporary rectangle to hold the offsets
     SDL_Rect offset;
@@ -205,6 +212,7 @@ void apply_surface( int x, int y, SDL_Surface* source, SDL_Surface* destination 
     offset.y = y;
     
     //Blit the surface
+    SDL_SetAlpha( source, SDL_SRCALPHA, alpha);
     SDL_BlitSurface( source, NULL, destination, &offset );
 }
 
@@ -236,15 +244,20 @@ void drawbackground()
     else
         background_y = 0;
         
-    apply_surface(0,background_y,background,screen);
-    apply_surface(0,background_y-640,background,screen);
+    apply_surface(0,background_y,255,background,screen);
+    apply_surface(0,background_y-640,255,background,screen);
 
 }
 
 void drawplayer()
 {
     if(p.alive == true)
-        apply_surface(p.dim.x,p.dim.y,sprite_player,screen);
+    {
+        if(p.invuln == false)
+            apply_surface(p.dim.x,p.dim.y,255,sprite_player,screen);
+        else
+            apply_surface(p.dim.x,p.dim.y,127,sprite_player,screen);
+    }
 }
 
 void drawlasers()
@@ -256,18 +269,18 @@ void drawlasers()
     {
         if(p.l[i].alive == true)
         {
-            apply_surface(p.l[i].dim.x,p.l[i].dim.y,sprite_laser,screen);
+            apply_surface(p.l[i].dim.x,p.l[i].dim.y,255,sprite_laser,screen);
         }
     }
     
     // enemy lasers
-    for(j=0;j<MAXLASERS;j++)
+    for(j=0;j<MAXENEMIES;j++)
     {
         for(i=0;i<MAXLASERS;i++)
         {
             if(e[j].l[i].alive == true)
             {
-                apply_surface(e[j].l[i].dim.x,e[j].l[i].dim.y,sprite_laser_enemy,screen);
+                apply_surface(e[j].l[i].dim.x,e[j].l[i].dim.y,255,sprite_laser_enemy,screen);
             }
         }
     }
@@ -281,7 +294,7 @@ void drawenemies()
     {
         if(e[i].alive == true)
         {
-            apply_surface(e[i].dim.x,e[i].dim.y,sprite_enemy,screen);
+            apply_surface(e[i].dim.x,e[i].dim.y,255,sprite_enemy,screen);
         }
     }
 }
@@ -296,7 +309,7 @@ void drawinfo()
     text_score = TTF_RenderText_Solid( font, score, textColor );
     
     if(text_score == NULL){ return; }
-    apply_surface(5, 5+SCREEN_BOTTOM, text_score, screen);
+    apply_surface(5, 5+SCREEN_BOTTOM, 255, text_score, screen);
     SDL_FreeSurface(text_score);
     
     char health[64];
@@ -305,14 +318,14 @@ void drawinfo()
     text_health = TTF_RenderText_Solid( font, health, textColor );
     
     if(text_health == NULL){ return; }
-    apply_surface(SCREEN_WIDTH-200, 5+SCREEN_BOTTOM, text_health, screen);
+    apply_surface(SCREEN_WIDTH-200, 5+SCREEN_BOTTOM, 255, text_health, screen);
     SDL_FreeSurface(text_health);
     
     for(i=1;i<=p.health;i++)
-        apply_surface((SCREEN_WIDTH-120)+(i*18), 3+SCREEN_BOTTOM, sprite_health_full, screen);
+        apply_surface((SCREEN_WIDTH-120)+(i*18), 3+SCREEN_BOTTOM, 255, sprite_health_full, screen);
     
     for(i=p.health+1;i<=5;i++)
-        apply_surface((SCREEN_WIDTH-120)+(i*18), 3+SCREEN_BOTTOM, sprite_health_empty, screen);
+        apply_surface((SCREEN_WIDTH-120)+(i*18), 3+SCREEN_BOTTOM, 255, sprite_health_empty, screen);
 }
 
 void drawgameover()
@@ -320,19 +333,38 @@ void drawgameover()
     text_gameover = TTF_RenderText_Solid( font, "Game Over", textColor );
     
     if(text_gameover == NULL){ return; }
-    apply_surface(250, 200, text_gameover, screen);
+    apply_surface(250, 200, 255, text_gameover, screen);
     SDL_FreeSurface(text_gameover);
 }
 
 void spawnplayer()
 {
     p.alive = true;
+    p.invuln = false;
+    p.invulnTimer = 0;
     p.score = 0;
     p.health = 5;
     p.dim.w = 64;
     p.dim.h = 64;
     p.dim.x = 295;
     p.dim.y = SCREEN_BOTTOM - p.dim.h;
+}
+
+void updateplayer()
+{
+    if(p.invulnTimer != 0)
+        p.invulnTimer--;
+    else
+        p.invuln = false;
+}
+
+void damageplayer(int d)
+{
+    p.invuln = true;
+    p.invulnTimer = 100;
+    p.health -= d;
+    Mix_VolumeChunk(snd_explosion, 64);
+    Mix_PlayChannel( -1, snd_explosion, 0 );
 }
 
 void moveplayer()
@@ -601,9 +633,8 @@ void testcollisions()
                 if(rect_col(p.dim,e[j].l[i].dim) == true)
                 {
                     e[j].l[i].alive = false;
-                    p.health -= 1;
-                    Mix_VolumeChunk(snd_explosion, 64);
-                    Mix_PlayChannel( -1, snd_explosion, 0 );
+                    if(p.invuln == false)
+                        damageplayer(1);
                     break;
                 }
             }
@@ -617,9 +648,8 @@ void testcollisions()
         {
             if(rect_col(e[j].dim,p.dim) == true)
             {
-                p.health -= 2;
-                Mix_VolumeChunk(snd_explosion, 64);
-                Mix_PlayChannel( -1, snd_explosion, 0 );
+                if(p.invuln == false)
+                    damageplayer(2);
                 break;
             }
         }
@@ -758,6 +788,7 @@ int main(int argc, char* argv[])
         if(game_over == false)
         {
             // Move and draw the player
+            updateplayer();
             moveplayer();
             drawplayer();
             
