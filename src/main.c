@@ -750,30 +750,30 @@ int main(int argc, char* argv[])
                 }
                 if(game_over == false)
                 {
-                    if(event.key.keysym.sym == SDLK_LEFT)
+                    if(event.key.keysym.sym == SDLK_LEFT || event.key.keysym.sym == SDLK_a)
                     {
                         action_moveleft = true;
                     }
-                    if(event.key.keysym.sym == SDLK_RIGHT)
+                    if(event.key.keysym.sym == SDLK_RIGHT || event.key.keysym.sym == SDLK_d)
                     {
                         action_moveright = true;
                     }
-                    if(event.key.keysym.sym == SDLK_UP)
+                    if(event.key.keysym.sym == SDLK_UP || event.key.keysym.sym == SDLK_w)
                     {
                         action_moveup = true;
                     }
-                    if(event.key.keysym.sym == SDLK_DOWN)
+                    if(event.key.keysym.sym == SDLK_DOWN || event.key.keysym.sym == SDLK_s)
                     {
                         action_movedown = true;
                     }
-                    if(event.key.keysym.sym == SDLK_SPACE)
+                    if(event.key.keysym.sym == SDLK_SPACE || event.key.keysym.sym == SDLK_RCTRL)
                     {
                         action_fire = true;
                     }
                 }
                 if(game_over == true)
                 {
-                    if(event.key.keysym.sym == SDLK_SPACE)
+                    if(event.key.keysym.sym == SDLK_RETURN)
                     {
                         newgame();
                     }
@@ -783,23 +783,23 @@ int main(int argc, char* argv[])
             {
                 if(game_over == false)
                 {
-                    if(event.key.keysym.sym == SDLK_LEFT)
+                    if(event.key.keysym.sym == SDLK_LEFT || event.key.keysym.sym == SDLK_a)
                     {
                         action_moveleft = false;
                     }
-                    if(event.key.keysym.sym == SDLK_RIGHT)
+                    if(event.key.keysym.sym == SDLK_RIGHT || event.key.keysym.sym == SDLK_d)
                     {
                         action_moveright = false;
                     }
-                    if(event.key.keysym.sym == SDLK_UP)
+                    if(event.key.keysym.sym == SDLK_UP || event.key.keysym.sym == SDLK_w)
                     {
                         action_moveup = false;
                     }
-                    if(event.key.keysym.sym == SDLK_DOWN)
+                    if(event.key.keysym.sym == SDLK_DOWN || event.key.keysym.sym == SDLK_s)
                     {
                         action_movedown = false;
                     }
-                    if(event.key.keysym.sym == SDLK_SPACE)
+                    if(event.key.keysym.sym == SDLK_SPACE || event.key.keysym.sym == SDLK_RCTRL)
                     {
                         action_fire = false;
                     }
