@@ -108,6 +108,7 @@ typedef struct enemy{
     int dir;
     int laserTimer;
     laser l[MAXLASERS];
+    int frame;
 }enemy;
 
 enemy e[MAXENEMIES];
@@ -317,7 +318,10 @@ void drawenemies()
     {
         if(e[i].alive == true)
         {
-            apply_surface(e[i].dim.x,e[i].dim.y,255,sprite_enemy,screen,NULL);
+            apply_surface(e[i].dim.x,e[i].dim.y,255,sprite_enemy,screen,&clipEnemyNorm[e[i].frame]);
+            
+            int totalframes = sizeof(clipEnemyNorm)/sizeof(SDL_Rect);
+            frameadvance(&e[i].frame,totalframes);
         }
     }
 }
@@ -531,6 +535,7 @@ void spawnenemies()
             if(e[i].alive != true && enemyTimer == 0)
             {
                 e[i].alive = true;
+                e[i].frame = 0;
                 e[i].pathlength = 0;
                 e[i].laserTimer = 0;
                 e[i].dir = randrange(0,1);
