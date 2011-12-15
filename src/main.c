@@ -49,6 +49,8 @@ int deltaTimer;
 int enemyTimer;
 int animationTimer;
 
+bool sound_enabled;
+
 // The main drawing area
 SDL_Surface* screen = NULL;
 
@@ -137,7 +139,13 @@ bool init()
     
     if( TTF_Init() == -1 ) { return false; }
     
-    if( Mix_OpenAudio( 22050, MIX_DEFAULT_FORMAT, 2, 4096 ) == -1 ) { return false; }
+    if( Mix_OpenAudio( 22050, MIX_DEFAULT_FORMAT, 2, 4096 ) == -1 )
+    {
+        sound_enabled = false;
+        return false; 
+    }
+    else
+        sound_enabled = true;
     
     SDL_WM_SetCaption("Space Shooter",NULL);
     
@@ -230,6 +238,15 @@ void frameadvance(int* frame,int totalframes)
         *frame += 1;
         if(*frame > totalframes-1)
             *frame = 0;
+    }
+}
+
+void play_sound(Mix_Chunk* snd, int volume)
+{
+    if(sound_enabled == true)
+    {
+        Mix_VolumeChunk(snd, volume);
+        Mix_PlayChannel( -1, snd, 0 );
     }
 }
 
@@ -398,8 +415,7 @@ void damageplayer(int d)
     p.invuln = true;
     p.invulnTimer = 100;
     p.health -= d;
-    Mix_VolumeChunk(snd_explosion, 64);
-    Mix_PlayChannel( -1, snd_explosion, 0 );
+    play_sound(snd_explosion, 64);
 }
 
 void moveplayer()
@@ -449,8 +465,7 @@ void fire()
                 p.l[i].dim.x = p.dim.x + (p.dim.w/2);
                 p.l[i].dim.y = p.dim.y - p.l[i].dim.h;
                 p.laserTimer = 15;
-                Mix_VolumeChunk(snd_player_fire, 32);
-                Mix_PlayChannel( -1, snd_player_fire, 0 );
+                play_sound(snd_player_fire, 32);
                 break;
             }
         }
@@ -479,8 +494,7 @@ void enemyfire()
                     e[j].l[i].dim.x = e[j].dim.x + (e[j].dim.w/2);
                     e[j].l[i].dim.y = e[j].dim.y + e[j].l[i].dim.h;
                     e[j].laserTimer = randrange(100,250);
-                    Mix_VolumeChunk(snd_player_fire, 16);
-                    Mix_PlayChannel( -1, snd_player_fire, 0 );
+                    play_sound(snd_player_fire, 16);
                     break;
                 }
             }
@@ -651,8 +665,7 @@ void testcollisions()
                     p.l[i].alive = false;
                     enemyTimer = 30;
                     p.score += 10;
-                    Mix_VolumeChunk(snd_explosion, 64);
-                    Mix_PlayChannel( -1, snd_explosion, 0 );
+                    play_sound(snd_explosion, 64);
                     break;
                 }
             }
@@ -672,6 +685,7 @@ void testcollisions()
                     {
                         e[j].l[i].alive = false;
                         damageplayer(1);
+                        //~ play_sound(snd_explosion, 64);
                     }
                     break;
                 }
@@ -690,6 +704,7 @@ void testcollisions()
                 {
                     e[j].alive = false;
                     damageplayer(2);
+                    //~ play_sound(snd_explosion, 64);
                 }
                 break;
             }
@@ -699,10 +714,13 @@ void testcollisions()
 
 void musicplay()
 {
-    if(Mix_PlayMusic(music, -1) == -1)
-        return;
-    else
-        Mix_VolumeMusic(128);
+    if(sound_enabled == true)
+    {
+        if(Mix_PlayMusic(music, -1) == -1)
+            return;
+        else
+            Mix_VolumeMusic(128);
+    }
 }
 
 void destroylasers()
