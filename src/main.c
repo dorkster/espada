@@ -27,6 +27,7 @@
 
 #define MAXLASERS 5
 #define MAXENEMIES 4
+#define MAXEXPLOSIONS 16
 
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
@@ -65,6 +66,7 @@ SDL_Surface* sprite_health_empty = NULL;
 SDL_Surface* sprite_laser = NULL;
 SDL_Surface* sprite_laser_enemy = NULL;
 SDL_Surface* sprite_enemy = NULL;
+SDL_Surface* sprite_explosion = NULL;
 
 // Text surfaces
 TTF_Font *font = NULL;
@@ -115,6 +117,14 @@ typedef struct enemy{
 
 enemy e[MAXENEMIES];
 
+typedef struct explosion{
+    bool alive;
+    SDL_Rect dim;
+    int frame;
+}explosion;
+
+explosion ex[MAXEXPLOSIONS];
+
 // Input actions
 bool action_moveleft = false;
 bool action_moveright = false;
@@ -139,13 +149,9 @@ bool init()
     
     if( TTF_Init() == -1 ) { return false; }
     
-    if( Mix_OpenAudio( 22050, MIX_DEFAULT_FORMAT, 2, 4096 ) == -1 )
-    {
-        sound_enabled = false;
-        return false; 
-    }
-    else
-        sound_enabled = true;
+    if( Mix_OpenAudio( 22050, MIX_DEFAULT_FORMAT, 2, 4096 ) == -1 ) { return false; }
+    
+    sound_enabled = true;
     
     SDL_WM_SetCaption("Space Shooter",NULL);
     
@@ -204,6 +210,9 @@ bool load_files()
     sprite_enemy = load_image("res/enemy_ship.png",true);
     if(sprite_enemy == NULL) { return false; }
     
+    sprite_explosion = load_image("res/explosion.png",true);
+    if(sprite_explosion == NULL) { return false; }
+    
     //Sound
     music = Mix_LoadMUS("res/music2.ogg");
     if(music == NULL) { return false; }
@@ -259,6 +268,7 @@ void clean_up()
     SDL_FreeSurface(sprite_laser);
     SDL_FreeSurface(sprite_laser_enemy);
     SDL_FreeSurface(sprite_enemy);
+    SDL_FreeSurface(sprite_explosion);
     
     Mix_FreeMusic(music);
     Mix_FreeChunk(snd_player_fire);
@@ -281,6 +291,46 @@ void drawbackground()
     apply_surface(0,background_y,255,background,screen,NULL);
     apply_surface(0,background_y-640,255,background,screen,NULL);
 
+}
+
+void drawexplosions()
+{
+    int i;
+    
+    for(i=0;i<MAXEXPLOSIONS;i++)
+    {
+        if(ex[i].alive == true)
+        {
+            apply_surface(ex[i].dim.x,ex[i].dim.y,255,sprite_explosion,screen,&clipExplosion[ex[i].frame]);
+            
+            int totalframes = sizeof(clipExplosion)/sizeof(SDL_Rect);
+            frameadvance(&ex[i].frame,totalframes);
+            
+            if(ex[i].frame == totalframes-1)
+            {
+                ex[i].alive = false;
+            }
+        }
+    }
+}
+
+void spawnexplosion(int x, int y)
+{
+    int i;
+    
+    for(i=0;i<MAXEXPLOSIONS;i++)
+    {
+        if(ex[i].alive == false)
+        {
+            ex[i].alive = true;
+            ex[i].dim.x = x;
+            ex[i].dim.y = y;
+            ex[i].dim.w = 64;
+            ex[i].dim.h = 64;
+            ex[i].frame = 0;
+            break;
+        }
+    }
 }
 
 void drawplayer()
@@ -416,6 +466,15 @@ void damageplayer(int d)
     p.invulnTimer = 100;
     p.health -= d;
     play_sound(snd_explosion, 64);
+    
+    // Check if player is dead
+    if(p.health <= 0)
+    {
+        p.health = 0;
+        p.alive = false;
+        spawnexplosion(p.dim.x,p.dim.y);
+        game_over = true;
+    }
 }
 
 void moveplayer()
@@ -665,6 +724,7 @@ void testcollisions()
                     p.l[i].alive = false;
                     enemyTimer = 30;
                     p.score += 10;
+                    spawnexplosion(e[j].dim.x,e[j].dim.y);
                     play_sound(snd_explosion, 64);
                     break;
                 }
@@ -685,7 +745,6 @@ void testcollisions()
                     {
                         e[j].l[i].alive = false;
                         damageplayer(1);
-                        //~ play_sound(snd_explosion, 64);
                     }
                     break;
                 }
@@ -704,7 +763,6 @@ void testcollisions()
                 {
                     e[j].alive = false;
                     damageplayer(2);
-                    //~ play_sound(snd_explosion, 64);
                 }
                 break;
             }
@@ -748,6 +806,12 @@ void newgame()
     spawnplayer();
     spawnenemies();
     game_init = false;
+    
+    int i;
+    for(i=0;i<MAXEXPLOSIONS;i++)
+    {
+        ex[i].alive = false;
+    }
 }
 
 int main(int argc, char* argv[])
@@ -845,6 +909,9 @@ int main(int argc, char* argv[])
         // Draw background
         drawbackground();
         
+        // Draw explosions
+        drawexplosions();
+        
         if(game_over == false)
         {
             // Move and draw the player
@@ -865,13 +932,6 @@ int main(int argc, char* argv[])
         movelasers();
         drawlasers();
         
-        // Check if player is dead
-        if(p.health <= 0)
-        {
-            p.health = 0;
-            p.alive = false;
-            game_over = true;
-        }
         
         // Draw the gameover text when the game is over
         if(game_over == true)
