@@ -50,7 +50,10 @@ int deltaTimer;
 int enemyTimer;
 int animationTimer;
 
-bool sound_enabled;
+bool system_soundenabled;
+
+int system_sfxvolume;
+int system_musvolume;
 
 // The main drawing area
 SDL_Surface* screen = NULL;
@@ -78,6 +81,7 @@ SDL_Surface* text_gameover = NULL;
 // Sound and music
 Mix_Music* music = NULL;
 Mix_Chunk* snd_player_fire = NULL;
+Mix_Chunk* snd_enemy_fire = NULL;
 Mix_Chunk* snd_explosion = NULL;
 
 // Event structure
@@ -151,7 +155,7 @@ bool init()
     
     if( Mix_OpenAudio( 22050, MIX_DEFAULT_FORMAT, 2, 4096 ) == -1 ) { return false; }
     
-    sound_enabled = true;
+    system_soundenabled = true;
     
     SDL_WM_SetCaption("Space Shooter",NULL);
     
@@ -214,11 +218,14 @@ bool load_files()
     if(sprite_explosion == NULL) { return false; }
     
     //Sound
-    music = Mix_LoadMUS("res/music2.ogg");
+    music = Mix_LoadMUS("res/music1.ogg");
     if(music == NULL) { return false; }
     
     snd_player_fire = Mix_LoadWAV("res/player_fire.wav");
     if(snd_player_fire == NULL) { return false; }
+    
+    snd_enemy_fire = Mix_LoadWAV("res/enemy_fire.wav");
+    if(snd_enemy_fire == NULL) { return false; }
     
     snd_explosion = Mix_LoadWAV("res/explosion.wav");
     if(snd_explosion == NULL) { return false; }
@@ -250,11 +257,11 @@ void frameadvance(int* frame,int totalframes)
     }
 }
 
-void play_sound(Mix_Chunk* snd, int volume)
+void play_sound(Mix_Chunk* snd)
 {
-    if(sound_enabled == true)
+    if(system_soundenabled == true)
     {
-        Mix_VolumeChunk(snd, volume);
+        Mix_VolumeChunk(snd, system_sfxvolume);
         Mix_PlayChannel( -1, snd, 0 );
     }
 }
@@ -272,6 +279,7 @@ void clean_up()
     
     Mix_FreeMusic(music);
     Mix_FreeChunk(snd_player_fire);
+    Mix_FreeChunk(snd_enemy_fire);
     Mix_FreeChunk(snd_explosion);
     
     SDL_Quit();
@@ -465,7 +473,7 @@ void damageplayer(int d)
     p.invuln = true;
     p.invulnTimer = 100;
     p.health -= d;
-    play_sound(snd_explosion, 64);
+    play_sound(snd_explosion);
     
     // Check if player is dead
     if(p.health <= 0)
@@ -524,7 +532,7 @@ void fire()
                 p.l[i].dim.x = p.dim.x + (p.dim.w/2);
                 p.l[i].dim.y = p.dim.y - p.l[i].dim.h;
                 p.laserTimer = 15;
-                play_sound(snd_player_fire, 32);
+                play_sound(snd_player_fire);
                 break;
             }
         }
@@ -553,7 +561,7 @@ void enemyfire()
                     e[j].l[i].dim.x = e[j].dim.x + (e[j].dim.w/2);
                     e[j].l[i].dim.y = e[j].dim.y + e[j].l[i].dim.h;
                     e[j].laserTimer = randrange(100,250);
-                    play_sound(snd_player_fire, 16);
+                    play_sound(snd_enemy_fire);
                     break;
                 }
             }
@@ -725,7 +733,7 @@ void testcollisions()
                     enemyTimer = 30;
                     p.score += 10;
                     spawnexplosion(e[j].dim.x,e[j].dim.y);
-                    play_sound(snd_explosion, 64);
+                    play_sound(snd_explosion);
                     break;
                 }
             }
@@ -772,12 +780,12 @@ void testcollisions()
 
 void musicplay()
 {
-    if(sound_enabled == true)
+    if(system_soundenabled == true)
     {
         if(Mix_PlayMusic(music, -1) == -1)
             return;
         else
-            Mix_VolumeMusic(128);
+            Mix_VolumeMusic(system_musvolume);
     }
 }
 
@@ -795,6 +803,9 @@ void destroylasers()
 
 void newgame()
 {
+    system_sfxvolume = 63;
+    system_musvolume = 255;
+    
     game_init = true;
     game_over = false;
     action_fire = false;
