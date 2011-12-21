@@ -65,7 +65,7 @@ bool sys_init()
     
     if( Mix_OpenAudio( 22050, MIX_DEFAULT_FORMAT, 2, 4096 ) == -1 ) { return false; }
     
-    SDL_WM_SetCaption("Space Shooter",NULL);
+    SDL_WM_SetCaption("Espada",NULL);
     
     return true;
 }
@@ -79,6 +79,9 @@ bool sys_loadfiles()
     //Textures
     background = image_load("res/background.png",false);
     if(background == NULL) { return false; }
+    
+    title_graphic = image_load("res/title.png",true);
+    if(title_graphic == NULL) { return false; }
     
     sprite_player = image_load("res/player_ship.png",true);
     if(sprite_player == NULL) { return false; }
@@ -120,6 +123,7 @@ bool sys_loadfiles()
 void sys_cleanup()
 {
     SDL_FreeSurface(background);
+    SDL_FreeSurface(title_graphic);
     SDL_FreeSurface(sprite_player);
     SDL_FreeSurface(sprite_health_full);
     SDL_FreeSurface(sprite_health_empty);
@@ -229,6 +233,17 @@ void draw_background()
 
 }
 
+void draw_titlescreen()
+{
+    image_apply((SCREEN_WIDTH-486)/2,50,255,title_graphic,screen,NULL);
+    
+    text_titlescreen = TTF_RenderText_Solid( font, "Press ENTER", textColor );
+    if(text_titlescreen == NULL){ return; }
+    
+    image_apply(250, 300, 255, text_titlescreen, screen, NULL);
+    SDL_FreeSurface(text_titlescreen);
+}
+
 void draw_info()
 {
     int i;
@@ -260,10 +275,10 @@ void draw_info()
 
 void draw_gameover()
 {
-    text_gameover = TTF_RenderText_Solid( font, "Game Over", textColor );
+    text_gameover = TTF_RenderText_Solid( font, "Game Over | Press ENTER to continue", textColor );
     
     if(text_gameover == NULL){ return; }
-    image_apply(250, 200, 255, text_gameover, screen, NULL);
+    image_apply(110, 200, 255, text_gameover, screen, NULL);
     SDL_FreeSurface(text_gameover);
 }
 
@@ -358,8 +373,9 @@ void draw_explosions()
 //------------------------------
 void game_newgame()
 {
-    game_init = true;
-    game_over = false;
+    gamestate_init = true;
+    gamestate_title = false;
+    gamestate_over = false;
     action_fire = false;
     action_moveleft = false;
     action_moveright = false;
@@ -368,7 +384,7 @@ void game_newgame()
     game_lasersdestroy();
     game_playerspawn();
     game_enemyspawn();
-    game_init = false;
+    gamestate_init = false;
     
     int i;
     for(i=0;i<MAXEXPLOSIONS;i++)
@@ -526,7 +542,7 @@ void game_playerdamage(int d)
         obj_player.health = 0;
         obj_player.alive = false;
         game_explosionspawn(obj_player.dim.x,obj_player.dim.y);
-        game_over = true;
+        gamestate_over = true;
     }
 }
 
@@ -542,7 +558,7 @@ void game_enemyspawn()
 {
     int i;
     
-    if(game_init == true)
+    if(gamestate_init == true)
     {
         for(i=0;i<MAXENEMIES;i++)
         {
@@ -622,7 +638,7 @@ void game_enemymove()
             obj_enemy[i].alive = false;
             obj_enemy[i].dim.x = 0;
             obj_enemy[i].dim.y = 0;
-            if(game_over == false)
+            if(gamestate_over == false)
                 obj_player.score -= 50;
             if(obj_player.score < 0)
                 obj_player.score = 0;
@@ -735,8 +751,6 @@ int main(int argc, char* argv[])
     if(sys_init() == false) { return 1; }
     if(sys_loadfiles() == false) { return 1; }
     
-    //Start a new game
-    game_newgame();
     set_clips();
     sound_playmus();
     
@@ -752,7 +766,8 @@ int main(int argc, char* argv[])
                 {
                     quit = true;
                 }
-                if(game_over == false)
+                
+                if(gamestate_over == false && gamestate_title == false)
                 {
                     if(event.key.keysym.sym == SDLK_LEFT || event.key.keysym.sym == SDLK_a)
                         action_moveleft = true;
@@ -765,15 +780,20 @@ int main(int argc, char* argv[])
                     if(event.key.keysym.sym == SDLK_SPACE || event.key.keysym.sym == SDLK_RCTRL)
                         action_fire = true;
                 }
-                if(game_over == true)
+                if(gamestate_over == true && gamestate_title == true)
                 {
                     if(event.key.keysym.sym == SDLK_RETURN)
                         game_newgame();
                 }
+                if(gamestate_over == true && gamestate_title == false)
+                {
+                    if(event.key.keysym.sym == SDLK_RETURN)
+                        gamestate_title = true;
+                }
             }
             else if( event.type == SDL_KEYUP )
             {
-                if(game_over == false)
+                if(gamestate_over == false)
                 {
                     if(event.key.keysym.sym == SDLK_LEFT || event.key.keysym.sym == SDLK_a)
                         action_moveleft = false;
@@ -799,41 +819,48 @@ int main(int argc, char* argv[])
         // Draw background
         draw_background();
         
-        // Draw explosions
-        draw_explosions();
-        
-        if(game_over == false)
+        if(gamestate_title == true)
         {
-            // Move and draw the player
-            game_playerinvulntick();
-            game_playermove();
-            draw_player();
+            draw_titlescreen();
+        }
+        else
+        {
+            // Draw explosions
+            draw_explosions();
             
-            // Fire player lasers
-            game_playerfire();
+            if(gamestate_over == false)
+            {
+                // Move and draw the player
+                game_playerinvulntick();
+                game_playermove();
+                draw_player();
+                
+                // Fire player lasers
+                game_playerfire();
+            }
+            
+            // Spawn and draw enemies
+            game_enemyspawn();
+            game_enemymove();
+            game_enemyfire();
+            draw_enemies();
+            
+            game_lasersmove();
+            draw_lasers();
+            
+            
+            // Draw the gameover text when the game is over
+            if(gamestate_over == true)
+            {
+                draw_gameover();
+            }
+            
+            // Draw score and lives
+            draw_info();
+            
+            // Collision Detection
+            game_testcollisions();
         }
-        
-        // Spawn and draw enemies
-        game_enemyspawn();
-        game_enemymove();
-        game_enemyfire();
-        draw_enemies();
-        
-        game_lasersmove();
-        draw_lasers();
-        
-        
-        // Draw the gameover text when the game is over
-        if(game_over == true)
-        {
-            draw_gameover();
-        }
-        
-        // Draw score and lives
-        draw_info();
-        
-        // Collision Detection
-        game_testcollisions();
         
         //Update animations
         if(animationTimer > 0)

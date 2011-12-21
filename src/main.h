@@ -17,6 +17,7 @@ void sound_playmus();
 
 void draw_frameadvance(int* frame,int totalframes);
 void draw_background();
+void draw_titlescreen();
 void draw_info();
 void draw_gameover();
 void draw_player();
@@ -71,6 +72,8 @@ SDL_Surface* screen = NULL;
 SDL_Surface* background = NULL;
 int background_y = 0;
 
+SDL_Surface* title_graphic = NULL;
+
 SDL_Surface* sprite_player = NULL;
 SDL_Surface* sprite_health_full = NULL;
 SDL_Surface* sprite_health_empty = NULL;
@@ -87,6 +90,7 @@ SDL_Color textColor = { 255, 255, 255 };
 SDL_Surface* text_score = NULL;
 SDL_Surface* text_health = NULL;
 SDL_Surface* text_gameover = NULL;
+SDL_Surface* text_titlescreen = NULL;
 
 //------------------------------
 // Sounds
@@ -105,8 +109,9 @@ int sound_volmus = 255;
 //------------------------------
 SDL_Event event;
 
-bool game_init = true;
-bool game_over = false;
+bool gamestate_init = true;
+bool gamestate_title = true;
+bool gamestate_over = true;
 
 bool action_moveleft = false;
 bool action_moveright = false;
