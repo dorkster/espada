@@ -1,4 +1,4 @@
-PROJNAME=space-shooter
+PROJNAME=espada
 SOURCES=src/main.c src/clips.c
 ifndef DESTDIR
 DESTDIR=/usr/local/games/$(PROJNAME)

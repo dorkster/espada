@@ -2,4 +2,4 @@
 
 make clean
 make
-./space-shooter
+./espada
