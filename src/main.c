@@ -197,11 +197,18 @@ void sound_playmus()
 {
     if(sound_enabled == true)
     {
-        if(Mix_PlayMusic(music, -1) == -1)
+        if(Mix_FadeInMusic(music, -1, sound_fadetime) == -1)
             return;
         else
             Mix_VolumeMusic(sound_volmus);
     }
+}
+
+void sound_setvolumes(int snd, int mus)
+{
+    sound_volfx = snd;
+    sound_volmus = mus;
+    sound_volmus_paused = mus/8;
 }
 
 //------------------------------
@@ -389,11 +396,20 @@ void game_newgame()
     game_enemyspawn();
     gamestate_init = false;
     
+    sound_playmus();
+    
     int i;
     for(i=0;i<MAXEXPLOSIONS;i++)
     {
         obj_explosion[i].alive = false;
     }
+}
+
+void game_titlescreen()
+{
+    gamestate_title = true;
+    Mix_FadeOutMusic(sound_fadetime);
+    Mix_HaltChannel(-1);
 }
 
 void game_pause()
@@ -769,8 +785,7 @@ int main(int argc, char* argv[])
     if(sys_loadfiles() == false) { return 1; }
     
     set_clips();
-    sound_volmus_paused = sound_volmus/8;
-    sound_playmus();
+    sound_setvolumes(63,127);
     
     while(quit == false)
     {
@@ -784,18 +799,6 @@ int main(int argc, char* argv[])
                 {
                     quit = true;
                 }
-                
-                //~ if(gamestate_pause == true)
-                //~ {
-                    //~ if(event.key.keysym.sym == 'p')
-                        //~ game_pause
-                //~ }
-                //~ else if(gamestate_pause == false && gamestate_over == false && gamestate_title == false)
-                //~ {
-                    //~ if(event.key.keysym.sym == 'p')
-                        //~ gamestate_pause = true;
-//~ 
-                //~ }
                 
                 if(gamestate_over == false && gamestate_title == false)
                 {
@@ -820,7 +823,7 @@ int main(int argc, char* argv[])
                 if(gamestate_over == true && gamestate_title == false)
                 {
                     if(event.key.keysym.sym == SDLK_RETURN)
-                        gamestate_title = true;
+                        game_titlescreen();
                 }
             }
             else if( event.type == SDL_KEYUP )

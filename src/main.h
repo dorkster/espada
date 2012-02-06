@@ -26,6 +26,7 @@ void draw_lasers();
 void draw_explosions();
 
 void game_newgame();
+void game_titlescreen();
 void game_pause();
 void game_testcollisions();
 void game_playerspawn();
@@ -102,8 +103,9 @@ Mix_Chunk* snd_enemy_fire = NULL;
 Mix_Chunk* snd_explosion = NULL;
 
 bool sound_enabled = true;
-int sound_volfx = 63;
-int sound_volmus = 255;
+int sound_fadetime = 500;
+int sound_volfx;
+int sound_volmus;
 int sound_volmus_paused;
 
 //------------------------------
