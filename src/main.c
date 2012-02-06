@@ -20,6 +20,9 @@
 #include "SDL/SDL_image.h"
 #include "SDL/SDL_ttf.h"
 #include "SDL/SDL_mixer.h"
+
+#include "iniparser.h"
+
 #include <stdlib.h>
 #include <time.h>
 
@@ -67,7 +70,57 @@ bool sys_init()
     
     SDL_WM_SetCaption("Espada",NULL);
     
+    sys_configpath = strcat(getenv("XDG_CONFIG_HOME"),"/espada.ini");
+    
     return true;
+}
+
+void sys_configcreate()
+{
+    FILE* f;
+    
+    f = fopen(sys_configpath, "w");
+    if(f != NULL)
+    {
+        fprintf(f,
+        "[config]\n"
+        "sound=6;\n"
+        "music=8;\n"
+        "\n");
+        fclose(f);
+    }
+}
+
+void sys_configupdate()
+{
+    FILE* f;
+    
+    f = fopen(sys_configpath, "w");
+    if(f != NULL)
+    {
+        fprintf(f,
+        "[config]\n"
+        "sound=%d;\n"
+        "music=%d;\n"
+        "\n",sound_volfx,sound_volmus);
+        fclose(f);
+    }
+}
+
+void sys_configload()
+{
+    dictionary* f;
+    
+    f = iniparser_load(sys_configpath);
+    if(f == NULL)
+    {
+        sys_configcreate();
+        sys_configload();
+    }
+    else
+    {
+        sound_setvolumes(iniparser_getint(f,"config:sound",-1),iniparser_getint(f,"config:music",-1));
+    }
 }
 
 bool sys_loadfiles()
@@ -212,7 +265,10 @@ void sound_setvolumes(int snd, int mus)
 {
     sound_volfx = snd;
     sound_volmus = mus;
-    sound_volmus_paused = mus/8;
+    sound_volmus_paused = mus/2;
+    
+    if(sound_volmus == 1)
+        sound_volmus_paused = 1;
 }
 
 //------------------------------
@@ -444,12 +500,12 @@ void game_pause()
 {
     if(gamestate_pause == false)
     {
-        Mix_VolumeMusic(sound_volmus_paused);
+        Mix_VolumeMusic(sound_volmus_paused*10);
         gamestate_pause = true;
     }
     else
     {
-        Mix_VolumeMusic(sound_volmus);
+        Mix_VolumeMusic(sound_volmus*10);
         gamestate_pause = false;
     }
 }
@@ -813,7 +869,7 @@ int main(int argc, char* argv[])
     if(sys_loadfiles() == false) { return 1; }
     
     set_clips();
-    sound_setvolumes(6,12);
+    sys_configload();
     
     while(quit == false)
     {
@@ -822,26 +878,21 @@ int main(int argc, char* argv[])
         while(SDL_PollEvent(&event))
         {
             if( event.type == SDL_KEYDOWN )
-            {
-                //~ if( event.key.keysym.sym == SDLK_ESCAPE )
-                //~ {
-                    //~ quit = true;
-                //~ }
-                
+            {                
                 if(gamestate_over == false && gamestate_title == false)
                 {
-                    if(event.key.keysym.sym == SDLK_LEFT || event.key.keysym.sym == SDLK_a)
+                    if(event.key.keysym.sym == SDLK_LEFT)
                         action_moveleft = true;
-                    if(event.key.keysym.sym == SDLK_RIGHT || event.key.keysym.sym == SDLK_d)
+                    if(event.key.keysym.sym == SDLK_RIGHT)
                         action_moveright = true;
-                    if(event.key.keysym.sym == SDLK_UP || event.key.keysym.sym == SDLK_w)
+                    if(event.key.keysym.sym == SDLK_UP)
                         action_moveup = true;
-                    if(event.key.keysym.sym == SDLK_DOWN || event.key.keysym.sym == SDLK_s)
+                    if(event.key.keysym.sym == SDLK_DOWN)
                         action_movedown = true;
-                    if(event.key.keysym.sym == SDLK_SPACE || event.key.keysym.sym == SDLK_RCTRL)
+                    if(event.key.keysym.sym == 'z')
                         action_fire = true;
                     
-                    if(event.key.keysym.sym == 'p')
+                    if(event.key.keysym.sym == 'p' || event.key.keysym.sym == SDLK_ESCAPE)
                         game_pause();
                     if(gamestate_pause == true)
                     {
@@ -858,7 +909,7 @@ int main(int argc, char* argv[])
 
                     if(menu_level == 0) // main menu
                     {
-                        if(event.key.keysym.sym == SDLK_RETURN)
+                        if(event.key.keysym.sym == 'z')
                         {
                             if(menu_selection == 0)
                                 game_newgame();
@@ -877,21 +928,21 @@ int main(int argc, char* argv[])
                         {
                             if(menu_selection == 0)
                                 if(sound_volfx-1 >= 0)
-                                    sound_volfx -= 1;
+                                    sound_setvolumes(sound_volfx-1,sound_volmus);
                             if(menu_selection == 1)
                                 if(sound_volmus-1 >= 0)
-                                    sound_volmus -= 1;
+                                    sound_setvolumes(sound_volfx,sound_volmus-1);
                         }
                         if(event.key.keysym.sym == SDLK_RIGHT)
                         {
                             if(menu_selection == 0)
                                 if(sound_volfx+1 <= 12)
-                                    sound_volfx += 1;
+                                    sound_setvolumes(sound_volfx+1,sound_volmus);
                             if(menu_selection == 1)
                                 if(sound_volmus+1 <= 12)
-                                    sound_volmus += 1;
+                                    sound_setvolumes(sound_volfx,sound_volmus+1);
                         }
-                        if(event.key.keysym.sym == SDLK_RETURN)
+                        if(event.key.keysym.sym == 'z')
                         {
                             if(menu_selection == 2)
                             {
@@ -903,7 +954,7 @@ int main(int argc, char* argv[])
                 }
                 if(gamestate_over == true && gamestate_title == false)
                 {
-                    if(event.key.keysym.sym == SDLK_RETURN)
+                    if(event.key.keysym.sym == 'q')
                         game_titlescreen();
                 }
             }
@@ -911,15 +962,15 @@ int main(int argc, char* argv[])
             {
                 if(gamestate_over == false)
                 {
-                    if(event.key.keysym.sym == SDLK_LEFT || event.key.keysym.sym == SDLK_a)
+                    if(event.key.keysym.sym == SDLK_LEFT)
                         action_moveleft = false;
-                    if(event.key.keysym.sym == SDLK_RIGHT || event.key.keysym.sym == SDLK_d)
+                    if(event.key.keysym.sym == SDLK_RIGHT)
                         action_moveright = false;
-                    if(event.key.keysym.sym == SDLK_UP || event.key.keysym.sym == SDLK_w)
+                    if(event.key.keysym.sym == SDLK_UP)
                         action_moveup = false;
-                    if(event.key.keysym.sym == SDLK_DOWN || event.key.keysym.sym == SDLK_s)
+                    if(event.key.keysym.sym == SDLK_DOWN)
                         action_movedown = false;
-                    if(event.key.keysym.sym == SDLK_SPACE || event.key.keysym.sym == SDLK_RCTRL)
+                    if(event.key.keysym.sym == 'z')
                         action_fire = false;
                 }
             }
@@ -970,7 +1021,7 @@ int main(int argc, char* argv[])
                 // Draw the gameover text when the game is over
                 if(gamestate_over == true)
                 {
-                    draw_statustext("Game Over | Press ENTER to continue");
+                    draw_statustext("Game Over | Press 'q' to continue");
                 }
                 
                 // Draw score and lives
@@ -1002,6 +1053,7 @@ int main(int argc, char* argv[])
         }
     }
     
+    sys_configupdate();
     sys_cleanup();
     
     return 0;

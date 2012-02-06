@@ -6,6 +6,9 @@ typedef enum { false = 0, true = 1 } bool;
 int sys_rand(int low, int high);
 bool sys_collide();
 bool sys_init();
+void sys_configcreate();
+void sys_configupdate();
+void sys_configload();
 bool sys_loadfiles();
 void sys_cleanup();
 
@@ -14,6 +17,7 @@ void image_apply( int x, int y, int alpha, SDL_Surface* source, SDL_Surface* des
 
 void sound_playfx(Mix_Chunk* snd);
 void sound_playmus();
+void sound_setvolumes(int snd, int mus);
 
 void draw_frameadvance(int* frame,int totalframes);
 void draw_background();
@@ -108,6 +112,11 @@ int sound_fadetime = 500;
 int sound_volfx;
 int sound_volmus;
 int sound_volmus_paused;
+
+//------------------------------
+// System variables
+//------------------------------
+char* sys_configpath;
 
 //------------------------------
 // Menus

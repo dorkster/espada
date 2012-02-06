@@ -1,9 +1,18 @@
 This is a simple space shooter that I made with C and SDL.
-You'll need SDL, SDL_image, SDL_ttf, and SDL_mixer to compile this.
 
-Controls:
-Arrow keys or WASD = Movement
-Space or Right Control = Fire
-Enter = Continue on Game Over
-Escape = Quit
+Dependencies:
+SDL
+SDL_image
+SDL_ttf
+SDL_mixer
+iniparser (Your distro's package manager might not have this, so you can get it here: http://ndevilla.free.fr/iniparser/)
+
+Controls (main menu):
+Arrow keys = Move cursor vertically / Increase & decrease settings
+Z = Accept selection
+
+Controls (ingame):
+Arrow keys = Movement
+Z = Fire
+P or ESC = Pause
 
