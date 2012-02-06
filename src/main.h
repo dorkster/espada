@@ -75,6 +75,7 @@ SDL_Surface* background = NULL;
 int background_y = 0;
 
 SDL_Surface* title_graphic = NULL;
+SDL_Surface* menu_cursor = NULL;
 
 SDL_Surface* sprite_player = NULL;
 SDL_Surface* sprite_health_full = NULL;
@@ -107,6 +108,13 @@ int sound_fadetime = 500;
 int sound_volfx;
 int sound_volmus;
 int sound_volmus_paused;
+
+//------------------------------
+// Menus
+//------------------------------
+int menu_selection = 0;
+int menu_level = 0;
+char* menu_main[2][3] = {{"Start","Options","Quit"},{"SFX: ","Music: ","Back"}};
 
 //------------------------------
 // Gameplay states

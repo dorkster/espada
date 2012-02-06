@@ -83,6 +83,9 @@ bool sys_loadfiles()
     title_graphic = image_load("res/title.png",true);
     if(title_graphic == NULL) { return false; }
     
+    menu_cursor = image_load("res/menu_cursor.png",true);
+    if(menu_cursor == NULL) { return false; }
+    
     sprite_player = image_load("res/player_ship.png",true);
     if(sprite_player == NULL) { return false; }
     
@@ -124,6 +127,7 @@ void sys_cleanup()
 {
     SDL_FreeSurface(background);
     SDL_FreeSurface(title_graphic);
+    SDL_FreeSurface(menu_cursor);
     SDL_FreeSurface(sprite_player);
     SDL_FreeSurface(sprite_health_full);
     SDL_FreeSurface(sprite_health_empty);
@@ -188,7 +192,7 @@ void sound_playfx(Mix_Chunk* snd)
 {
     if(sound_enabled == true)
     {
-        Mix_VolumeChunk(snd, sound_volfx);
+        Mix_VolumeChunk(snd, sound_volfx*10);
         Mix_PlayChannel( -1, snd, 0 );
     }
 }
@@ -200,7 +204,7 @@ void sound_playmus()
         if(Mix_FadeInMusic(music, -1, sound_fadetime) == -1)
             return;
         else
-            Mix_VolumeMusic(sound_volmus);
+            Mix_VolumeMusic(sound_volmus*10);
     }
 }
 
@@ -242,13 +246,35 @@ void draw_background()
 
 void draw_titlescreen()
 {
+    char tempstr[16];
+    
     image_apply((SCREEN_WIDTH-486)/2,50,255,title_graphic,screen,NULL);
     
-    text_titlescreen = TTF_RenderText_Solid( font, "Press ENTER", textColor );
-    if(text_titlescreen == NULL){ return; }
+    int i;
+    for(i=0;i<3;i++)
+    {
+        if(menu_level == 1)
+        {
+            if(i == 0)
+                sprintf(tempstr,"%s%d",menu_main[menu_level][i],sound_volfx);
+            else if(i == 1)
+                sprintf(tempstr,"%s%d",menu_main[menu_level][i],sound_volmus);
+            else
+                sprintf(tempstr,"%s",menu_main[menu_level][i]);
+        }
+        else
+        {
+            sprintf(tempstr,"%s",menu_main[menu_level][i]);
+        }
+        
+        text_titlescreen = TTF_RenderText_Solid( font, tempstr, textColor );
+        if(text_titlescreen == NULL){ return; }
+        
+        image_apply(280, 300+(i*20), 255, text_titlescreen, screen, NULL);
+        SDL_FreeSurface(text_titlescreen);
+    }
     
-    image_apply(250, 300, 255, text_titlescreen, screen, NULL);
-    SDL_FreeSurface(text_titlescreen);
+    image_apply(260, 300+(menu_selection*20), 255, menu_cursor, screen, NULL);
 }
 
 void draw_info()
@@ -407,6 +433,8 @@ void game_newgame()
 
 void game_titlescreen()
 {
+    gamestate_over = true;
+    gamestate_pause = false;
     gamestate_title = true;
     Mix_FadeOutMusic(sound_fadetime);
     Mix_HaltChannel(-1);
@@ -785,7 +813,7 @@ int main(int argc, char* argv[])
     if(sys_loadfiles() == false) { return 1; }
     
     set_clips();
-    sound_setvolumes(63,127);
+    sound_setvolumes(6,12);
     
     while(quit == false)
     {
@@ -795,10 +823,10 @@ int main(int argc, char* argv[])
         {
             if( event.type == SDL_KEYDOWN )
             {
-                if( event.key.keysym.sym == SDLK_ESCAPE )
-                {
-                    quit = true;
-                }
+                //~ if( event.key.keysym.sym == SDLK_ESCAPE )
+                //~ {
+                    //~ quit = true;
+                //~ }
                 
                 if(gamestate_over == false && gamestate_title == false)
                 {
@@ -812,13 +840,66 @@ int main(int argc, char* argv[])
                         action_movedown = true;
                     if(event.key.keysym.sym == SDLK_SPACE || event.key.keysym.sym == SDLK_RCTRL)
                         action_fire = true;
+                    
                     if(event.key.keysym.sym == 'p')
                         game_pause();
+                    if(gamestate_pause == true)
+                    {
+                        if(event.key.keysym.sym == 'q')
+                            game_titlescreen();
+                    }
                 }
                 if(gamestate_over == true && gamestate_title == true)
                 {
-                    if(event.key.keysym.sym == SDLK_RETURN)
-                        game_newgame();
+                    if(event.key.keysym.sym == SDLK_DOWN && menu_selection+1 < 3)
+                        menu_selection += 1;
+                    if(event.key.keysym.sym == SDLK_UP && menu_selection > 0)
+                        menu_selection -= 1;
+
+                    if(menu_level == 0) // main menu
+                    {
+                        if(event.key.keysym.sym == SDLK_RETURN)
+                        {
+                            if(menu_selection == 0)
+                                game_newgame();
+                            if(menu_selection == 1)
+                            {
+                                menu_level = 1;
+                                menu_selection = 0;
+                            }
+                            if(menu_selection == 2)
+                                quit = true;
+                        }
+                    }
+                    else if (menu_level == 1) // options menu
+                    {
+                        if(event.key.keysym.sym == SDLK_LEFT)
+                        {
+                            if(menu_selection == 0)
+                                if(sound_volfx-1 >= 0)
+                                    sound_volfx -= 1;
+                            if(menu_selection == 1)
+                                if(sound_volmus-1 >= 0)
+                                    sound_volmus -= 1;
+                        }
+                        if(event.key.keysym.sym == SDLK_RIGHT)
+                        {
+                            if(menu_selection == 0)
+                                if(sound_volfx+1 <= 12)
+                                    sound_volfx += 1;
+                            if(menu_selection == 1)
+                                if(sound_volmus+1 <= 12)
+                                    sound_volmus += 1;
+                        }
+                        if(event.key.keysym.sym == SDLK_RETURN)
+                        {
+                            if(menu_selection == 2)
+                            {
+                                menu_level = 0;
+                                menu_selection = 0;
+                            }
+                        }
+                    }
                 }
                 if(gamestate_over == true && gamestate_title == false)
                 {
@@ -907,7 +988,7 @@ int main(int argc, char* argv[])
         }
         else
         {
-            draw_statustext("Game Paused");
+            draw_statustext("Game Paused | Press 'q' to quit");
         }
         
         //Update the screen
