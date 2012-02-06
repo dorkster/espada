@@ -273,13 +273,15 @@ void draw_info()
         image_apply((SCREEN_WIDTH-120)+(i*18), 3+SCREEN_BOTTOM, 255, sprite_health_empty, screen, NULL);
 }
 
-void draw_gameover()
+void draw_statustext(char* text)
 {
-    text_gameover = TTF_RenderText_Solid( font, "Game Over | Press ENTER to continue", textColor );
+    int len = strlen(text);
+    int xpos = (SCREEN_WIDTH-(len*12))/2;
+    text_status = TTF_RenderText_Solid( font, text, textColor );
     
-    if(text_gameover == NULL){ return; }
-    image_apply(110, 200, 255, text_gameover, screen, NULL);
-    SDL_FreeSurface(text_gameover);
+    if(text_status == NULL){ return; }
+    image_apply(xpos, 200, 255, text_status, screen, NULL);
+    SDL_FreeSurface(text_status);
 }
 
 void draw_player()
@@ -376,6 +378,7 @@ void game_newgame()
     gamestate_init = true;
     gamestate_title = false;
     gamestate_over = false;
+    gamestate_pause = false;
     action_fire = false;
     action_moveleft = false;
     action_moveright = false;
@@ -390,6 +393,20 @@ void game_newgame()
     for(i=0;i<MAXEXPLOSIONS;i++)
     {
         obj_explosion[i].alive = false;
+    }
+}
+
+void game_pause()
+{
+    if(gamestate_pause == false)
+    {
+        Mix_VolumeMusic(sound_volmus_paused);
+        gamestate_pause = true;
+    }
+    else
+    {
+        Mix_VolumeMusic(sound_volmus);
+        gamestate_pause = false;
     }
 }
 
@@ -752,6 +769,7 @@ int main(int argc, char* argv[])
     if(sys_loadfiles() == false) { return 1; }
     
     set_clips();
+    sound_volmus_paused = sound_volmus/8;
     sound_playmus();
     
     while(quit == false)
@@ -767,6 +785,18 @@ int main(int argc, char* argv[])
                     quit = true;
                 }
                 
+                //~ if(gamestate_pause == true)
+                //~ {
+                    //~ if(event.key.keysym.sym == 'p')
+                        //~ game_pause
+                //~ }
+                //~ else if(gamestate_pause == false && gamestate_over == false && gamestate_title == false)
+                //~ {
+                    //~ if(event.key.keysym.sym == 'p')
+                        //~ gamestate_pause = true;
+//~ 
+                //~ }
+                
                 if(gamestate_over == false && gamestate_title == false)
                 {
                     if(event.key.keysym.sym == SDLK_LEFT || event.key.keysym.sym == SDLK_a)
@@ -779,6 +809,8 @@ int main(int argc, char* argv[])
                         action_movedown = true;
                     if(event.key.keysym.sym == SDLK_SPACE || event.key.keysym.sym == SDLK_RCTRL)
                         action_fire = true;
+                    if(event.key.keysym.sym == 'p')
+                        game_pause();
                 }
                 if(gamestate_over == true && gamestate_title == true)
                 {
@@ -813,60 +845,67 @@ int main(int argc, char* argv[])
             }
         }
         
-        // Fill the screen with black
-        SDL_FillRect(screen,NULL, 0x000000);
-        
-        // Draw background
-        draw_background();
-        
-        if(gamestate_title == true)
+        if(gamestate_pause != true)
         {
-            draw_titlescreen();
-        }
-        else
-        {
-            // Draw explosions
-            draw_explosions();
+            // Fill the screen with black
+            SDL_FillRect(screen,NULL, 0x000000);
             
-            if(gamestate_over == false)
+            // Draw background
+            draw_background();
+            
+            if(gamestate_title == true)
             {
-                // Move and draw the player
-                game_playerinvulntick();
-                game_playermove();
-                draw_player();
+                draw_titlescreen();
+            }
+            else
+            {
+                // Draw explosions
+                draw_explosions();
                 
-                // Fire player lasers
-                game_playerfire();
+                if(gamestate_over == false)
+                {
+                    // Move and draw the player
+                    game_playerinvulntick();
+                    game_playermove();
+                    draw_player();
+                    
+                    // Fire player lasers
+                    game_playerfire();
+                }
+                
+                // Spawn and draw enemies
+                game_enemyspawn();
+                game_enemymove();
+                game_enemyfire();
+                draw_enemies();
+                
+                game_lasersmove();
+                draw_lasers();
+                
+                
+                // Draw the gameover text when the game is over
+                if(gamestate_over == true)
+                {
+                    draw_statustext("Game Over | Press ENTER to continue");
+                }
+                
+                // Draw score and lives
+                draw_info();
+                
+                // Collision Detection
+                game_testcollisions();
             }
             
-            // Spawn and draw enemies
-            game_enemyspawn();
-            game_enemymove();
-            game_enemyfire();
-            draw_enemies();
-            
-            game_lasersmove();
-            draw_lasers();
-            
-            
-            // Draw the gameover text when the game is over
-            if(gamestate_over == true)
-            {
-                draw_gameover();
-            }
-            
-            // Draw score and lives
-            draw_info();
-            
-            // Collision Detection
-            game_testcollisions();
+            //Update animations
+            if(animationTimer > 0)
+                animationTimer--;
+            else
+                animationTimer = 2;
         }
-        
-        //Update animations
-        if(animationTimer > 0)
-            animationTimer--;
         else
-            animationTimer = 2;
+        {
+            draw_statustext("Game Paused");
+        }
         
         //Update the screen
         if(SDL_Flip(screen) == -1) { return 1; }

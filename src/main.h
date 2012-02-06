@@ -19,13 +19,14 @@ void draw_frameadvance(int* frame,int totalframes);
 void draw_background();
 void draw_titlescreen();
 void draw_info();
-void draw_gameover();
+void draw_statustext();
 void draw_player();
 void draw_enemies();
 void draw_lasers();
 void draw_explosions();
 
 void game_newgame();
+void game_pause();
 void game_testcollisions();
 void game_playerspawn();
 void game_playermove();
@@ -89,7 +90,7 @@ TTF_Font *font = NULL;
 SDL_Color textColor = { 255, 255, 255 };
 SDL_Surface* text_score = NULL;
 SDL_Surface* text_health = NULL;
-SDL_Surface* text_gameover = NULL;
+SDL_Surface* text_status = NULL;
 SDL_Surface* text_titlescreen = NULL;
 
 //------------------------------
@@ -103,6 +104,7 @@ Mix_Chunk* snd_explosion = NULL;
 bool sound_enabled = true;
 int sound_volfx = 63;
 int sound_volmus = 255;
+int sound_volmus_paused;
 
 //------------------------------
 // Gameplay states
@@ -112,6 +114,7 @@ SDL_Event event;
 bool gamestate_init = true;
 bool gamestate_title = true;
 bool gamestate_over = true;
+bool gamestate_pause = false;
 
 bool action_moveleft = false;
 bool action_moveright = false;
