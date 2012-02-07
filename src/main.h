@@ -11,6 +11,7 @@ void sys_configupdate();
 void sys_configload();
 bool sys_loadfiles();
 void sys_cleanup();
+void sys_input();
 
 SDL_Surface *image_load(char * filename, bool withalpha);
 void image_apply( int x, int y, int alpha, SDL_Surface* source, SDL_Surface* destination, SDL_Rect* clip );
@@ -19,19 +20,22 @@ void sound_playfx(Mix_Chunk* snd);
 void sound_playmus();
 void sound_setvolumes(int snd, int mus);
 
+void draw_everything();
 void draw_frameadvance(int* frame,int totalframes);
 void draw_background();
 void draw_titlescreen();
 void draw_info();
-void draw_statustext(char* text);
+void draw_statustext();
 void draw_player();
 void draw_enemies();
 void draw_lasers();
 void draw_explosions();
 
+void game_logic();
 void game_newgame();
 void game_titlescreen();
 void game_pause();
+void game_setstatustext(char* text, int timeout);
 void game_testcollisions();
 void game_playerspawn();
 void game_playermove();
@@ -117,6 +121,7 @@ int sound_volmus_paused;
 //------------------------------
 // System variables
 //------------------------------
+bool quit = false;
 char* sys_configpath;
 
 //------------------------------
@@ -148,6 +153,9 @@ bool action_fire = false;
 int game_enemytotal;
 int game_enemyspawnlimit;
 int game_enemywaves;
+
+char game_statustext[100];
+char game_statustexttimeout;
 
 //------------------------------
 // Game object structures

@@ -199,6 +199,120 @@ void sys_cleanup()
     SDL_Quit();
 }
 
+void sys_input()
+{
+    while(SDL_PollEvent(&event))
+    {
+        if( event.type == SDL_KEYDOWN )
+        {
+            // Gameplay
+            if(gamestate_over == false && gamestate_title == false)
+            {
+                if(event.key.keysym.sym == SDLK_LEFT)
+                    action_moveleft = true;
+                if(event.key.keysym.sym == SDLK_RIGHT)
+                    action_moveright = true;
+                if(event.key.keysym.sym == SDLK_UP)
+                    action_moveup = true;
+                if(event.key.keysym.sym == SDLK_DOWN)
+                    action_movedown = true;
+                if(event.key.keysym.sym == 'z')
+                    action_fire = true;
+                
+                // Pause screen
+                if(event.key.keysym.sym == 'p' || event.key.keysym.sym == SDLK_ESCAPE)
+                    game_pause();
+                if(gamestate_pause == true)
+                    if(event.key.keysym.sym == 'q')
+                        game_titlescreen();
+            }
+            
+            // Title screen menu
+            if(gamestate_over == true && gamestate_title == true)
+            {
+                if(event.key.keysym.sym == SDLK_DOWN && menu_selection+1 < 3)
+                    menu_selection += 1;
+                if(event.key.keysym.sym == SDLK_UP && menu_selection > 0)
+                    menu_selection -= 1;
+
+                if(menu_level == 0) // main menu
+                {
+                    if(event.key.keysym.sym == 'z')
+                    {
+                        if(menu_selection == 0)
+                            game_newgame();
+                        if(menu_selection == 1)
+                        {
+                            menu_level = 1;
+                            menu_selection = 0;
+                        }
+                        if(menu_selection == 2)
+                            quit = true;
+                    }
+                }
+                else if (menu_level == 1) // options menu
+                {
+                    if(event.key.keysym.sym == SDLK_LEFT)
+                    {
+                        if(menu_selection == 0)
+                            if(sound_volfx-1 >= 0)
+                                sound_setvolumes(sound_volfx-1,sound_volmus);
+                        if(menu_selection == 1)
+                            if(sound_volmus-1 >= 0)
+                                sound_setvolumes(sound_volfx,sound_volmus-1);
+                    }
+                    if(event.key.keysym.sym == SDLK_RIGHT)
+                    {
+                        if(menu_selection == 0)
+                            if(sound_volfx+1 <= 12)
+                                sound_setvolumes(sound_volfx+1,sound_volmus);
+                        if(menu_selection == 1)
+                            if(sound_volmus+1 <= 12)
+                                sound_setvolumes(sound_volfx,sound_volmus+1);
+                    }
+                    if(event.key.keysym.sym == 'z')
+                    {
+                        if(menu_selection == 2)
+                        {
+                            menu_level = 0;
+                            menu_selection = 0;
+                        }
+                    }
+                }
+            }
+            
+            // Game over
+            if(gamestate_over == true && gamestate_title == false)
+            {
+                if(event.key.keysym.sym == 'q')
+                    game_titlescreen();
+            }
+        }
+        else if( event.type == SDL_KEYUP )
+        {
+            // Regular gameplay
+            if(gamestate_over == false)
+            {
+                if(event.key.keysym.sym == SDLK_LEFT)
+                    action_moveleft = false;
+                if(event.key.keysym.sym == SDLK_RIGHT)
+                    action_moveright = false;
+                if(event.key.keysym.sym == SDLK_UP)
+                    action_moveup = false;
+                if(event.key.keysym.sym == SDLK_DOWN)
+                    action_movedown = false;
+                if(event.key.keysym.sym == 'z')
+                    action_fire = false;
+            }
+        }
+        
+        if(event.type == SDL_QUIT)
+        {
+            quit = true;
+        }
+    }
+}
+
 //------------------------------
 // Image functions
 //------------------------------
@@ -274,6 +388,29 @@ void sound_setvolumes(int snd, int mus)
 //------------------------------
 // Drawing functions
 //------------------------------
+void draw_everything()
+{
+    // Fill the screen with black
+    SDL_FillRect(screen,NULL, 0x000000);
+    
+    // Draw background
+    draw_background();
+    
+    // Draw the title screen
+    if(gamestate_title == true)
+        draw_titlescreen();
+    else
+    {
+        // Draw the game objects
+        if(gamestate_over == false)
+            draw_player();
+        draw_enemies();
+        draw_explosions();
+        draw_lasers();
+        draw_info();
+        draw_statustext();
+    }
+}
 void draw_frameadvance(int* frame,int totalframes)
 {
     if(animationTimer == 0)
@@ -288,12 +425,15 @@ void draw_background()
 {
     int scrollspeed = 10;
     
-    if(background_y < 640)
+    if(gamestate_pause == false)
     {
-        background_y += scrollspeed;
+        if(background_y < 640)
+        {
+            background_y += scrollspeed;
+        }
+        else
+            background_y = 0;
     }
-    else
-        background_y = 0;
         
     image_apply(0,background_y,255,background,screen,NULL);
     image_apply(0,background_y-640,255,background,screen,NULL);
@@ -362,15 +502,21 @@ void draw_info()
         image_apply((SCREEN_WIDTH-120)+(i*18), 3+SCREEN_BOTTOM, 255, sprite_health_empty, screen, NULL);
 }
 
-void draw_statustext(char* text)
+void draw_statustext()
 {
-    int len = strlen(text);
-    int xpos = (SCREEN_WIDTH-(len*12))/2;
-    text_status = TTF_RenderText_Solid( font, text, textColor );
+    if(game_statustexttimeout != 0)
+    {
+        int len = strlen(game_statustext);
+        int xpos = (SCREEN_WIDTH-(len*12))/2;
+        text_status = TTF_RenderText_Solid( font, game_statustext, textColor );
+        
+        if(text_status == NULL){ return; }
+        image_apply(xpos, 200, 255, text_status, screen, NULL);
+        SDL_FreeSurface(text_status);
+    }
     
-    if(text_status == NULL){ return; }
-    image_apply(xpos, 200, 255, text_status, screen, NULL);
-    SDL_FreeSurface(text_status);
+    if(game_statustexttimeout > 0)
+        game_statustexttimeout -= 1;
 }
 
 void draw_player()
@@ -462,6 +608,42 @@ void draw_explosions()
 //------------------------------
 // Gameplay & Logic functions
 //------------------------------
+void game_logic()
+{
+    if(gamestate_pause == false && gamestate_title == false)
+    {
+        if(gamestate_over == false)
+        {
+            // Player movement
+            game_playerinvulntick();
+            game_playermove();
+            
+            // Fire player lasers
+            game_playerfire();
+            
+            // Collision Detection
+            game_testcollisions();
+        }
+        
+        // Spawn and draw enemies
+        game_enemyspawn();
+        game_enemymove();
+        game_enemyfire();
+        
+        game_lasersmove();
+        
+        // Draw the gameover text when the game is over
+        if(gamestate_over == true)
+            game_setstatustext("Game Over | Press 'q' to continue",-1);
+        
+        //Update animations
+        if(animationTimer > 0)
+            animationTimer--;
+        else
+            animationTimer = 2;
+    }
+}
+
 void game_newgame()
 {
     gamestate_init = true;
@@ -492,6 +674,7 @@ void game_titlescreen()
     gamestate_over = true;
     gamestate_pause = false;
     gamestate_title = true;
+    game_setstatustext("",0);
     Mix_FadeOutMusic(sound_fadetime);
     Mix_HaltChannel(-1);
 }
@@ -500,14 +683,22 @@ void game_pause()
 {
     if(gamestate_pause == false)
     {
+        game_setstatustext("Game Paused | Press 'q' to quit",-1);
         Mix_VolumeMusic(sound_volmus_paused*10);
         gamestate_pause = true;
     }
     else
     {
+        game_setstatustext("",0);
         Mix_VolumeMusic(sound_volmus*10);
         gamestate_pause = false;
     }
+}
+
+void game_setstatustext(char* text, int timeout)
+{
+    strcpy(game_statustext,text);
+    game_statustexttimeout = timeout;
 }
 
 void game_testcollisions()
@@ -721,6 +912,7 @@ void game_enemyspawn()
     if(game_enemytotal == 0)
     {
         game_enemywaves += 1;
+        //~ game_setstatustext("New wave",100);
         for(i=0;i<MAXENEMIES;i++)
         {
             obj_enemy[i].dim.w = 64;
@@ -901,9 +1093,7 @@ void game_explosionspawn(int x, int y)
 int main(int argc, char* argv[])
 {
     srand(time(0));
-    
-    bool quit = false;
-    
+        
     if(sys_init() == false) { return 1; }
     if(sys_loadfiles() == false) { return 1; }
     
@@ -914,172 +1104,9 @@ int main(int argc, char* argv[])
     {
         startTimer = SDL_GetTicks();
         
-        while(SDL_PollEvent(&event))
-        {
-            if( event.type == SDL_KEYDOWN )
-            {                
-                if(gamestate_over == false && gamestate_title == false)
-                {
-                    if(event.key.keysym.sym == SDLK_LEFT)
-                        action_moveleft = true;
-                    if(event.key.keysym.sym == SDLK_RIGHT)
-                        action_moveright = true;
-                    if(event.key.keysym.sym == SDLK_UP)
-                        action_moveup = true;
-                    if(event.key.keysym.sym == SDLK_DOWN)
-                        action_movedown = true;
-                    if(event.key.keysym.sym == 'z')
-                        action_fire = true;
-                    
-                    if(event.key.keysym.sym == 'p' || event.key.keysym.sym == SDLK_ESCAPE)
-                        game_pause();
-                    if(gamestate_pause == true)
-                    {
-                        if(event.key.keysym.sym == 'q')
-                            game_titlescreen();
-                    }
-                }
-                if(gamestate_over == true && gamestate_title == true)
-                {
-                    if(event.key.keysym.sym == SDLK_DOWN && menu_selection+1 < 3)
-                        menu_selection += 1;
-                    if(event.key.keysym.sym == SDLK_UP && menu_selection > 0)
-                        menu_selection -= 1;
-
-                    if(menu_level == 0) // main menu
-                    {
-                        if(event.key.keysym.sym == 'z')
-                        {
-                            if(menu_selection == 0)
-                                game_newgame();
-                            if(menu_selection == 1)
-                            {
-                                menu_level = 1;
-                                menu_selection = 0;
-                            }
-                            if(menu_selection == 2)
-                                quit = true;
-                        }
-                    }
-                    else if (menu_level == 1) // options menu
-                    {
-                        if(event.key.keysym.sym == SDLK_LEFT)
-                        {
-                            if(menu_selection == 0)
-                                if(sound_volfx-1 >= 0)
-                                    sound_setvolumes(sound_volfx-1,sound_volmus);
-                            if(menu_selection == 1)
-                                if(sound_volmus-1 >= 0)
-                                    sound_setvolumes(sound_volfx,sound_volmus-1);
-                        }
-                        if(event.key.keysym.sym == SDLK_RIGHT)
-                        {
-                            if(menu_selection == 0)
-                                if(sound_volfx+1 <= 12)
-                                    sound_setvolumes(sound_volfx+1,sound_volmus);
-                            if(menu_selection == 1)
-                                if(sound_volmus+1 <= 12)
-                                    sound_setvolumes(sound_volfx,sound_volmus+1);
-                        }
-                        if(event.key.keysym.sym == 'z')
-                        {
-                            if(menu_selection == 2)
-                            {
-                                menu_level = 0;
-                                menu_selection = 0;
-                            }
-                        }
-                    }
-                }
-                if(gamestate_over == true && gamestate_title == false)
-                {
-                    if(event.key.keysym.sym == 'q')
-                        game_titlescreen();
-                }
-            }
-            else if( event.type == SDL_KEYUP )
-            {
-                if(gamestate_over == false)
-                {
-                    if(event.key.keysym.sym == SDLK_LEFT)
-                        action_moveleft = false;
-                    if(event.key.keysym.sym == SDLK_RIGHT)
-                        action_moveright = false;
-                    if(event.key.keysym.sym == SDLK_UP)
-                        action_moveup = false;
-                    if(event.key.keysym.sym == SDLK_DOWN)
-                        action_movedown = false;
-                    if(event.key.keysym.sym == 'z')
-                        action_fire = false;
-                }
-            }
-            if(event.type == SDL_QUIT)
-            {
-                quit = true;
-            }
-        }
-        
-        if(gamestate_pause != true)
-        {
-            // Fill the screen with black
-            SDL_FillRect(screen,NULL, 0x000000);
-            
-            // Draw background
-            draw_background();
-            
-            if(gamestate_title == true)
-            {
-                draw_titlescreen();
-            }
-            else
-            {
-                // Draw explosions
-                draw_explosions();
-                
-                if(gamestate_over == false)
-                {
-                    // Move and draw the player
-                    game_playerinvulntick();
-                    game_playermove();
-                    draw_player();
-                    
-                    // Fire player lasers
-                    game_playerfire();
-                }
-                
-                // Spawn and draw enemies
-                game_enemyspawn();
-                game_enemymove();
-                game_enemyfire();
-                draw_enemies();
-                
-                game_lasersmove();
-                draw_lasers();
-                
-                
-                // Draw the gameover text when the game is over
-                if(gamestate_over == true)
-                {
-                    draw_statustext("Game Over | Press 'q' to continue");
-                }
-                
-                // Draw score and lives
-                draw_info();
-                
-                // Collision Detection
-                game_testcollisions();
-            }
-            
-            //Update animations
-            if(animationTimer > 0)
-                animationTimer--;
-            else
-                animationTimer = 2;
-        }
-        else
-        {
-            draw_statustext("Game Paused | Press 'q' to quit");
-        }
+        sys_input();
+        game_logic();
+        draw_everything();
         
         //Update the screen
         if(SDL_Flip(screen) == -1) { return 1; }
