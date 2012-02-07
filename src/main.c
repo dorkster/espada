@@ -524,6 +524,7 @@ void game_testcollisions()
                 if(sys_collide(obj_player.laz[i].dim,obj_enemy[j].dim) == true)
                 {
                     obj_enemy[j].alive = false;
+                    game_enemytotal -= 1;
                     obj_player.laz[i].alive = false;
                     enemyTimer = 30;
                     obj_player.score += 10;
@@ -565,6 +566,7 @@ void game_testcollisions()
                 if(obj_player.invuln == false)
                 {
                     obj_enemy[j].alive = false;
+                    game_enemytotal -= 1;
                     game_playerdamage(2);
                 }
                 break;
@@ -709,30 +711,34 @@ void game_enemyspawn()
     
     if(gamestate_init == true)
     {
+        game_enemytotal = 0;
+        game_enemywaves = 0;
         for(i=0;i<MAXENEMIES;i++)
         {
             obj_enemy[i].alive = false;
         }
     }
-
+    if(game_enemytotal == 0)
+    {
+        game_enemywaves += 1;
         for(i=0;i<MAXENEMIES;i++)
         {
             obj_enemy[i].dim.w = 64;
             obj_enemy[i].dim.h = 32;
             
-            if(obj_enemy[i].alive != true && enemyTimer == 0)
+            if(obj_enemy[i].alive != true)
             {
                 obj_enemy[i].alive = true;
+                game_enemytotal += 1;
                 obj_enemy[i].frame = 0;
                 obj_enemy[i].pathlength = 0;
                 obj_enemy[i].laserTimer = 0;
                 obj_enemy[i].dir = sys_rand(0,1);
                 obj_enemy[i].dim.x = sys_rand(0,SCREEN_WIDTH - obj_enemy[i].dim.w);
-                obj_enemy[i].dim.y = sys_rand(-500,-50);
-                break;
+                obj_enemy[i].dim.y = sys_rand(-192,-64);
             }
         }
-       
+    }
 }
 
 void game_enemymove()
@@ -785,6 +791,7 @@ void game_enemymove()
         if(obj_enemy[i].dim.y > SCREEN_BOTTOM+obj_enemy[i].dim.h)
         {
             obj_enemy[i].alive = false;
+            game_enemytotal -= 1;
             obj_enemy[i].dim.x = 0;
             obj_enemy[i].dim.y = 0;
             if(gamestate_over == false)

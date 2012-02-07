@@ -23,7 +23,7 @@ void draw_frameadvance(int* frame,int totalframes);
 void draw_background();
 void draw_titlescreen();
 void draw_info();
-void draw_statustext();
+void draw_statustext(char* text);
 void draw_player();
 void draw_enemies();
 void draw_lasers();
@@ -69,6 +69,7 @@ int endTimer;
 int deltaTimer;
 int enemyTimer;
 int animationTimer;
+int statustextTimer;
 
 //------------------------------
 // Image surfaces
@@ -140,6 +141,13 @@ bool action_moveright = false;
 bool action_moveup = false;
 bool action_movedown = false;
 bool action_fire = false;
+
+//------------------------------
+// Gameplay variables
+//------------------------------
+int game_enemytotal;
+int game_enemyspawnlimit;
+int game_enemywaves;
 
 //------------------------------
 // Game object structures
