@@ -159,6 +159,8 @@ typedef struct player{
     bool invuln;
     int invulnTimer;
     int frame;
+    int netspeedhorz;
+    int netspeedvert;
 }player;
 
 typedef struct enemy{

@@ -587,36 +587,68 @@ void game_playerspawn()
     obj_player.dim.y = SCREEN_BOTTOM - obj_player.dim.h;
     
     obj_player.frame = 0;
+    
+    obj_player.netspeedhorz = 0;
+    obj_player.netspeedvert = 0;
 }
 
 void game_playermove()
 {
-    int movespeed = 8;
-    
+    int maxspeed = 8;
+
     if(action_moveleft == true)
     {
-        obj_player.dim.x -= movespeed;
-        if(obj_player.dim.x < 0)
-            obj_player.dim.x = 0;
+        if(obj_player.netspeedhorz > -maxspeed)
+            obj_player.netspeedhorz -= 1;
     }
     else if(action_moveright == true)
     {
-        obj_player.dim.x += movespeed;
-        if((obj_player.dim.x + obj_player.dim.w) > SCREEN_WIDTH)
-            obj_player.dim.x = SCREEN_WIDTH - obj_player.dim.w;
+        if(obj_player.netspeedhorz < maxspeed)
+            obj_player.netspeedhorz += 1;
     }
     if(action_moveup == true)
     {
-        obj_player.dim.y -= movespeed/2;
-        if(obj_player.dim.y < 0)
-            obj_player.dim.y = 0;
+        if(obj_player.netspeedvert > -maxspeed/2)
+            obj_player.netspeedvert -= 1;
     }
     else if(action_movedown == true)
     {
-        obj_player.dim.y += movespeed/2;
-        if((obj_player.dim.y + obj_player.dim.h) > SCREEN_BOTTOM)
-            obj_player.dim.y = SCREEN_BOTTOM - obj_player.dim.h;
+        if(obj_player.netspeedvert < maxspeed/2)
+            obj_player.netspeedvert += 1;
     }
+    
+    if(action_moveleft == false)
+    {
+        if(obj_player.netspeedhorz < 0)
+            obj_player.netspeedhorz += 1;
+    }
+    if(action_moveright == false)
+    {
+        if(obj_player.netspeedhorz > 0)
+            obj_player.netspeedhorz -= 1;
+    }
+    if(action_moveup == false)
+    {
+        if(obj_player.netspeedvert < 0)
+            obj_player.netspeedvert += 1;
+    }
+    if(action_movedown == false)
+    {
+        if(obj_player.netspeedvert > 0)
+            obj_player.netspeedvert -= 1;
+    }
+        
+    obj_player.dim.x += obj_player.netspeedhorz;
+    obj_player.dim.y += obj_player.netspeedvert;
+    
+    if(obj_player.dim.x < 0)
+        obj_player.dim.x = 0;
+    if(obj_player.dim.y < 0)
+        obj_player.dim.y = 0;
+    if((obj_player.dim.x + obj_player.dim.w) > SCREEN_WIDTH)
+        obj_player.dim.x = SCREEN_WIDTH - obj_player.dim.w;
+    if((obj_player.dim.y + obj_player.dim.h) > SCREEN_BOTTOM)
+        obj_player.dim.y = SCREEN_BOTTOM - obj_player.dim.h;
 }
 
 void game_playerfire()
