@@ -899,6 +899,7 @@ void game_playerinvulntick()
 void game_enemyspawn()
 {
     int i;
+    char wavemsg[64];
     
     if(gamestate_init == true)
     {
@@ -911,25 +912,39 @@ void game_enemyspawn()
     }
     if(game_enemytotal == 0)
     {
-        game_enemywaves += 1;
-        //~ game_setstatustext("New wave",100);
-        for(i=0;i<MAXENEMIES;i++)
+        if(enemyspawnTimer == 0)
         {
-            obj_enemy[i].dim.w = 64;
-            obj_enemy[i].dim.h = 32;
-            
-            if(obj_enemy[i].alive != true)
+            for(i=0;i<MAXENEMIES;i++)
             {
-                obj_enemy[i].alive = true;
-                game_enemytotal += 1;
-                obj_enemy[i].frame = 0;
-                obj_enemy[i].pathlength = 0;
-                obj_enemy[i].laserTimer = 0;
-                obj_enemy[i].dir = sys_rand(0,1);
-                obj_enemy[i].dim.x = sys_rand(0,SCREEN_WIDTH - obj_enemy[i].dim.w);
-                obj_enemy[i].dim.y = sys_rand(-192,-64);
+                obj_enemy[i].dim.w = 64;
+                obj_enemy[i].dim.h = 32;
+                
+                if(obj_enemy[i].alive != true)
+                {
+                    obj_enemy[i].alive = true;
+                    game_enemytotal += 1;
+                    obj_enemy[i].frame = 0;
+                    obj_enemy[i].pathlength = 0;
+                    obj_enemy[i].laserTimer = 0;
+                    obj_enemy[i].dir = sys_rand(0,1);
+                    obj_enemy[i].dim.x = sys_rand(0,SCREEN_WIDTH - obj_enemy[i].dim.w);
+                    obj_enemy[i].dim.y = sys_rand(-192,-64);
+                }
             }
         }
+        if(enemyspawnTimer > 0 )
+            enemyspawnTimer -= 1;
+    }
+    else
+    {
+        enemyspawnTimer = 180;
+    }
+    
+    if(enemyspawnTimer == 179 && game_enemytotal == 0)
+    {
+        game_enemywaves += 1;
+        sprintf(wavemsg,"Wave: %d",game_enemywaves);
+        game_setstatustext(wavemsg,120);
     }
 }
 

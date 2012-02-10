@@ -72,6 +72,7 @@ int startTimer;
 int endTimer;
 int deltaTimer;
 int enemyTimer;
+int enemyspawnTimer = 180;
 int animationTimer;
 int statustextTimer;
 
