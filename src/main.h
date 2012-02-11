@@ -93,6 +93,7 @@ SDL_Surface* sprite_health_empty = NULL;
 SDL_Surface* sprite_laser = NULL;
 SDL_Surface* sprite_laser_enemy = NULL;
 SDL_Surface* sprite_enemy = NULL;
+SDL_Surface* sprite_enemy2 = NULL;
 SDL_Surface* sprite_explosion = NULL;
 
 //------------------------------
@@ -182,6 +183,7 @@ typedef struct player{
 
 typedef struct enemy{
     bool alive;
+    int type;
     SDL_Rect dim;
     int pathlength;
     int dir;

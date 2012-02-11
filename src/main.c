@@ -157,6 +157,9 @@ bool sys_loadfiles()
     sprite_enemy = image_load("res/enemy_ship.png",true);
     if(sprite_enemy == NULL) { return false; }
     
+    sprite_enemy2 = image_load("res/enemy_ship2.png",true);
+    if(sprite_enemy2 == NULL) { return false; }
+    
     sprite_explosion = image_load("res/explosion.png",true);
     if(sprite_explosion == NULL) { return false; }
     
@@ -187,6 +190,7 @@ void sys_cleanup()
     SDL_FreeSurface(sprite_laser);
     SDL_FreeSurface(sprite_laser_enemy);
     SDL_FreeSurface(sprite_enemy);
+    SDL_FreeSurface(sprite_enemy2);
     SDL_FreeSurface(sprite_explosion);
     
     Mix_FreeMusic(music);
@@ -545,14 +549,23 @@ void draw_player()
 void draw_enemies()
 {
     int i;
+    int totalframes = 0;
     
     for(i=0;i<MAXENEMIES;i++)
     {
         if(obj_enemy[i].alive == true)
         {
-            image_apply(obj_enemy[i].dim.x,obj_enemy[i].dim.y,255,sprite_enemy,screen,&clipEnemyNorm[obj_enemy[i].frame]);
+            if(obj_enemy[i].type == 0)
+            {
+                image_apply(obj_enemy[i].dim.x,obj_enemy[i].dim.y,255,sprite_enemy,screen,&clipEnemyType1[obj_enemy[i].frame]);
+                totalframes = sizeof(clipEnemyType1)/sizeof(SDL_Rect);
+            }
+            else if (obj_enemy[i].type == 1)
+            {
+                image_apply(obj_enemy[i].dim.x,obj_enemy[i].dim.y,255,sprite_enemy2,screen,&clipEnemyType2[obj_enemy[i].frame]);
+                totalframes = sizeof(clipEnemyType2)/sizeof(SDL_Rect);
+            }
             
-            int totalframes = sizeof(clipEnemyNorm)/sizeof(SDL_Rect);
             draw_frameadvance(&obj_enemy[i].frame,totalframes);
         }
     }
@@ -718,7 +731,10 @@ void game_testcollisions()
                     game_enemytotal -= 1;
                     obj_player.laz[i].alive = false;
                     enemyTimer = 30;
-                    obj_player.score += 10;
+                    if(obj_enemy[j].type == 0)
+                        obj_player.score += 50;
+                    else if(obj_enemy[j].type == 1)
+                        obj_player.score += 100;
                     game_explosionspawn(obj_enemy[j].dim.x,obj_enemy[j].dim.y);
                     sound_playfx(snd_explosion);
                     break;
@@ -915,12 +931,21 @@ void game_enemyspawn()
         if(enemyspawnTimer == 0)
         {
             for(i=0;i<MAXENEMIES;i++)
-            {
-                obj_enemy[i].dim.w = 64;
-                obj_enemy[i].dim.h = 32;
-                
+            {                
                 if(obj_enemy[i].alive != true)
                 {
+                    if(game_enemywaves < 5)
+                    {
+                        obj_enemy[i].dim.w = 64;
+                        obj_enemy[i].dim.h = 32;
+                        obj_enemy[i].type = 0;
+                    }
+                    else
+                    {
+                        obj_enemy[i].dim.w = 64;
+                        obj_enemy[i].dim.h = 64;
+                        obj_enemy[i].type = 1;
+                    }
                     obj_enemy[i].alive = true;
                     game_enemytotal += 1;
                     obj_enemy[i].frame = 0;
@@ -950,7 +975,7 @@ void game_enemyspawn()
 
 void game_enemymove()
 {
-    int movespeed = 2;
+    int movespeed;
     
     int i;
 
@@ -958,6 +983,11 @@ void game_enemymove()
     {
         if(obj_enemy[i].alive == true)
         {
+            if(obj_enemy[i].type == 0)
+                movespeed = 2;
+            else if(obj_enemy[i].type == 1)
+                movespeed = 3;
+            
             if(obj_enemy[i].pathlength == 0)
             {
                 obj_enemy[i].pathlength = sys_rand(10,SCREEN_WIDTH/2);
@@ -1002,7 +1032,12 @@ void game_enemymove()
             obj_enemy[i].dim.x = 0;
             obj_enemy[i].dim.y = 0;
             if(gamestate_over == false)
-                obj_player.score -= 50;
+            {
+                if(obj_enemy[i].type == 0)
+                    obj_player.score -= 100;
+                else if(obj_enemy[i].type == 1)
+                    obj_player.score -= 200;
+            }
             if(obj_player.score < 0)
                 obj_player.score = 0;
             break;
@@ -1030,7 +1065,10 @@ void game_enemyfire()
                     obj_enemy[j].laz[i].alive = true;
                     obj_enemy[j].laz[i].dim.x = obj_enemy[j].dim.x + (obj_enemy[j].dim.w/2);
                     obj_enemy[j].laz[i].dim.y = obj_enemy[j].dim.y + obj_enemy[j].laz[i].dim.h;
-                    obj_enemy[j].laserTimer = sys_rand(100,250);
+                    if(obj_enemy[j].type == 0)
+                        obj_enemy[j].laserTimer = sys_rand(100,250);
+                    else if (obj_enemy[j].type == 1)
+                        obj_enemy[j].laserTimer = sys_rand(50,100);
                     sound_playfx(snd_enemy_fire);
                     break;
                 }
