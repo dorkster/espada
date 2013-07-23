@@ -70,7 +70,12 @@ bool sys_init()
     
     SDL_WM_SetCaption("Espada",NULL);
     
-    sys_configpath = strcat(getenv("XDG_CONFIG_HOME"),"/espada.ini");
+    static char configpath_buffer[4096];
+    if (getenv("XDG_CONFIG_HOME") != NULL)
+        snprintf(configpath_buffer, sizeof(configpath_buffer), "%s/espada.ini", getenv("XDG_CONFIG_HOME"));
+    else
+        snprintf(configpath_buffer, sizeof(configpath_buffer), "%s/.config/espada.ini", getenv("HOME"));
+    sys_configpath = configpath_buffer;
     
     return true;
 }

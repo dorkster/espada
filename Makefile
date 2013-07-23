@@ -1,22 +1,21 @@
 PROJNAME=espada
 SOURCES=src/main.c src/clips.c
-ifndef DESTDIR
-DESTDIR=/usr/local/games/$(PROJNAME)
-endif
+DESTDIR?=/usr/local/games/$(PROJNAME)
 
-CC=gcc
-CFLAGS+=
-LDFLAGS+=-lSDL -lSDL_image -lSDL_ttf -lSDL_mixer -liniparser
+CC?=gcc
+CFLAGS?=-O2
+CFLAGS+=`sdl-config --cflags` -Wall -mms-bitfields -std=c99
+LDFLAGS+=`sdl-config --libs` -lSDL_image -lSDL_ttf -lSDL_mixer -liniparser
 OBJECTS=$(SOURCES:.c=.o)
 EXECUTABLE=$(PROJNAME)
 RESOURCES=res/music.ogg res/background.png res/enemy_ship.png res/laser.png res/player_ship.png res/VeraBd.ttf res/explosion.wav res/player_fire.wav
 all: $(SOURCES) $(EXECUTABLE)
 
 $(EXECUTABLE): $(OBJECTS)
-	$(CC) $(OBJECTS) $(LDFLAGS) -Wall -O2 -mms-bitfields -std=c99 -o $@
+	$(CC) $(OBJECTS) $(LDFLAGS) -o $@
 
 .c.o:
-	$(CC) $< $ $(CFLAGS) -c -Wall -O2 -mms-bitfields -std=c99 -o $@
+	$(CC) $< $ $(CFLAGS) -c -o $@
 
 install:
 	mkdir -p $(DESTDIR)/res
